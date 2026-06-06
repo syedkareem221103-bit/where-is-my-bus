@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+
+# Build Output
+dist/
+build/
+
+# Logs
+*.log
+
+# MacOS
+.DS_Store
+
+# Prisma SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Vercel
+.vercel/
+
+# IDE
+.vscode/
+.idea/

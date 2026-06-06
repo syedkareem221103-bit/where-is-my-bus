@@ -1,0 +1,369 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Institution {
+  id            String         @id @default(uuid())
+  name          String
+  subdomain     String         @unique
+  logoUrl       String?
+  timezone      String         @default("UTC")
+  cutoffTime    String         @default("07:00")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users                  User[]
+  buses                  Bus[]
+  routes                 Route[]
+  students               Student[]
+  attendance             Attendance[]
+  trips                  Trip[]
+  notifications          Notification[]
+  parentStudentMappings  ParentStudentMapping[]
+  routeSchedules         RouteSchedule[]
+  tripHistories          TripHistory[]
+  emergencyEvents        EmergencyEvent[]
+  delayReports           DelayReport[]
+  emergencyNotifications EmergencyNotification[]
+}
+
+model User {
+  id             String         @id @default(uuid())
+  institutionId  String?
+  institution    Institution?   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  email          String         @unique
+  passwordHash   String
+  role           String         // "SUPER_ADMIN", "INST_ADMIN", "DRIVER", "PARENT", "STUDENT"
+  firstName      String
+  lastName       String
+  phone          String?
+  avatarUrl      String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  studentProfile   Student?               @relation("StudentUser")
+  parentStudents   Student[]              @relation("ParentStudents")
+  driverBus        Bus?                   @relation("DriverBus")
+  driverTrips      Trip[]                 @relation("DriverTrips")
+  markedAttendance Attendance[]           @relation("MarkedAttendance")
+  notifications    Notification[]
+  parentMappings   ParentStudentMapping[] @relation("ParentMapping")
+  driverSchedules  RouteSchedule[]        @relation("ScheduleDriver")
+  driverBoardings  BoardingEvent[]        @relation("DriverBoardings")
+  emergencyEvents  EmergencyEvent[]       @relation("DriverEmergencyEvents")
+  delayReports     DelayReport[]          @relation("DriverDelayReports")
+  emergencyNotifications EmergencyNotification[] @relation("UserEmergencyNotifications")
+}
+
+model Bus {
+  id            String          @id @default(uuid())
+  institutionId String
+  institution   Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  busNumber     String
+  licensePlate  String
+  capacity      Int
+  driverId      String?         @unique
+  driver        User?           @relation("DriverBus", fields: [driverId], references: [id], onDelete: SetNull)
+  status        String          @default("IDLE") // "IDLE", "EN_ROUTE", "MAINTENANCE"
+  lastLat       Float?
+  lastLng       Float?
+  lastSpeed     Float?
+  lastHeading   Float?
+  lastUpdated    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  students       Student[]
+  trips          Trip[]
+  schedules      RouteSchedule[]
+  boardingEvents BoardingEvent[]
+  emergencyEvents EmergencyEvent[]
+  delayReports    DelayReport[]
+
+  @@unique([institutionId, busNumber])
+}
+
+model Route {
+  id            String       @id @default(uuid())
+  institutionId String
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  startLat      Float
+  startLng      Float
+  endLat        Float
+  endLng        Float
+  polyline      String?      // Encoded path geometry
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  students      Student[]
+  trips         Trip[]
+  schedules     RouteSchedule[]
+  tripHistories TripHistory[]
+}
+
+model Student {
+  id            String       @id @default(uuid())
+  institutionId String
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId        String?      @unique
+  user          User?        @relation("StudentUser", fields: [userId], references: [id], onDelete: Cascade)
+  parentId      String?
+  parent        User?        @relation("ParentStudents", fields: [parentId], references: [id], onDelete: SetNull)
+  routeId       String?
+  route         Route?       @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  busId         String?
+  bus           Bus?         @relation(fields: [busId], references: [id], onDelete: SetNull)
+  pickupLat     Float
+  pickupLng     Float
+  pickupAddress String?
+  sequenceOrder  Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  attendance     Attendance[]
+  parentMappings ParentStudentMapping[] @relation("StudentMapping")
+  routeStops     RouteStop[]
+  qrCode         StudentQRCode?
+  boardingEvents BoardingEvent[]
+
+  @@index([parentId])
+  @@index([routeId])
+  @@index([busId])
+  @@index([institutionId])
+}
+
+model Attendance {
+  id            String       @id @default(uuid())
+  institutionId String
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date          String       // Format: YYYY-MM-DD
+  requiresRide  Boolean      @default(true)
+  markedById    String?
+  markedBy      User?        @relation("MarkedAttendance", fields: [markedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@unique([studentId, date])
+}
+
+model Trip {
+  id             String         @id @default(uuid())
+  institutionId  String
+  institution    Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  busId          String
+  bus            Bus            @relation(fields: [busId], references: [id])
+  routeId        String
+  route          Route          @relation(fields: [routeId], references: [id])
+  driverId       String
+  driver         User           @relation("DriverTrips", fields: [driverId], references: [id])
+  status         String         @default("SCHEDULED") // "SCHEDULED", "RUNNING", "COMPLETED", "CANCELLED"
+  startTime      DateTime?
+  endTime        DateTime?
+  routeScheduleId String?
+  routeSchedule  RouteSchedule? @relation(fields: [routeScheduleId], references: [id])
+  createdAt      DateTime       @default(now())
+  logs           TripLog[]
+  etaCaches      ETACache[]
+  emergencyEvents EmergencyEvent[]
+  delayReports    DelayReport[]
+}
+
+model TripLog {
+  id        Int      @id @default(autoincrement())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  lat       Float
+  lng       Float
+  speed     Float?
+  bearing   Float?
+  timestamp DateTime @default(now())
+
+  @@index([tripId])
+}
+
+model Notification {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  message       String
+  type          String      // "BUS_STARTED", "BUS_APPROACHING", "BOARDED", "DEBOARDED", "DELAY", "SYSTEM"
+  isRead        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  @@index([userId])
+  @@index([institutionId])
+}
+
+model ParentStudentMapping {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  parentId      String
+  parent        User        @relation("ParentMapping", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student     @relation("StudentMapping", fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([parentId, studentId])
+}
+
+model RouteSchedule {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  routeId       String
+  route         Route       @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  busId         String?
+  bus           Bus?        @relation(fields: [busId], references: [id], onDelete: SetNull)
+  driverId      String?
+  driver        User?       @relation("ScheduleDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  date          String      // Format: YYYY-MM-DD
+  status        String      @default("SCHEDULED") // "SCHEDULED", "RUNNING", "COMPLETED", "CANCELLED"
+  startTime     DateTime?
+  endTime       DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  stops         RouteStop[]
+  trips         Trip[]
+
+  @@unique([routeId, date])
+}
+
+model RouteStop {
+  id              String        @id @default(uuid())
+  routeScheduleId String
+  routeSchedule   RouteSchedule @relation(fields: [routeScheduleId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sequenceOrder   Int
+  status          String        @default("PENDING") // "PENDING", "BOARDED", "DEBOARDED", "MISSED"
+  lat             Float
+  lng             Float
+  address         String?
+  arrivalTime     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  etaCache        ETACache?
+
+  @@index([routeScheduleId])
+  @@index([studentId])
+}
+
+model StudentQRCode {
+  id        String   @id @default(uuid())
+  studentId String   @unique
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  qrToken   String   @unique
+  createdAt DateTime @default(now())
+}
+
+model BoardingEvent {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  busId     String
+  bus       Bus      @relation(fields: [busId], references: [id])
+  driverId  String
+  driver    User     @relation("DriverBoardings", fields: [driverId], references: [id])
+  lat       Float
+  lng       Float
+  eventType String   // "BOARDED", "DEBOARDED"
+  timestamp DateTime @default(now())
+}
+
+model TripHistory {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  routeId       String
+  route         Route       @relation(fields: [routeId], references: [id])
+  busId         String
+  driverId      String
+  totalDuration Float       // Actual duration of route in minutes
+  averageSpeed  Float       // Actual average speed in km/h
+  onTimeStatus  String      // "ON_TIME", "DELAYED"
+  date          String      // YYYY-MM-DD
+  createdAt     DateTime    @default(now())
+
+  @@index([routeId])
+  @@index([institutionId])
+}
+
+model ETACache {
+  id               String    @id @default(uuid())
+  tripId           String
+  trip             Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  routeStopId      String    @unique
+  routeStop        RouteStop @relation(fields: [routeStopId], references: [id], onDelete: Cascade)
+  predictedArrival DateTime
+  distanceKm       Float
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tripId])
+}
+
+model EmergencyEvent {
+  id                     String                  @id @default(uuid())
+  institutionId          String
+  institution            Institution             @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  tripId                 String?
+  trip                   Trip?                   @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  busId                  String
+  bus                    Bus                     @relation(fields: [busId], references: [id], onDelete: Cascade)
+  driverId               String
+  driver                 User                    @relation("DriverEmergencyEvents", fields: [driverId], references: [id], onDelete: Cascade)
+  type                   String                  // "SOS", "BREAKDOWN", "MEDICAL", "TRAFFIC", "OBSTRUCTION"
+  status                 String                  @default("ACTIVE") // "ACTIVE", "RESOLVED"
+  description            String?
+  lat                    Float
+  lng                    Float
+  resolvedAt             DateTime?
+  createdAt              DateTime                @default(now())
+  emergencyNotifications EmergencyNotification[]
+
+  @@index([tripId])
+  @@index([busId])
+  @@index([institutionId])
+}
+
+model DelayReport {
+  id                     String                  @id @default(uuid())
+  institutionId          String
+  institution            Institution             @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  tripId                 String
+  trip                   Trip                    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  busId                  String
+  bus                    Bus                     @relation(fields: [busId], references: [id], onDelete: Cascade)
+  driverId               String
+  driver                 User                    @relation("DriverDelayReports", fields: [driverId], references: [id], onDelete: Cascade)
+  estimatedDelayMins     Int
+  reason                 String                  // "TRAFFIC", "OBSTRUCTION", "BREAKDOWN", "MEDICAL", "OTHER"
+  description            String?
+  createdAt              DateTime                @default(now())
+  emergencyNotifications EmergencyNotification[]
+
+  @@index([tripId])
+  @@index([busId])
+  @@index([institutionId])
+}
+
+model EmergencyNotification {
+  id            String          @id @default(uuid())
+  institutionId String
+  institution   Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User            @relation("UserEmergencyNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  eventId       String?
+  event         EmergencyEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  delayReportId String?
+  delayReport   DelayReport?    @relation(fields: [delayReportId], references: [id], onDelete: SetNull)
+  title         String
+  message       String
+  isRead        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+}
