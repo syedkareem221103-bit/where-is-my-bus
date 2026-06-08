@@ -26,7 +26,13 @@ const allowedOrigins = [
 ];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+    if (
+      !origin || 
+      allowedOrigins.indexOf(origin) !== -1 || 
+      origin.endsWith('.vercel.app') || 
+      /^https:\/\/.*\.vercel\.app$/.test(origin) || 
+      process.env.NODE_ENV !== 'production'
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Blocked by CORS'));

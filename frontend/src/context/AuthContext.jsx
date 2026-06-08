@@ -2,7 +2,8 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || 
+  (window.location.hostname === 'localhost' ? '' : 'https://where-is-my-bus-production.up.railway.app');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
