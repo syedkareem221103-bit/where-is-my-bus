@@ -24,7 +24,8 @@ const allowedOrigins = [
   'http://localhost:5001',
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : [])
 ];
-app.use(cors({
+
+const corsOptions = {
   origin: (origin, callback) => {
     if (
       !origin || 
@@ -35,11 +36,15 @@ app.use(cors({
     ) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by CORS'));
+      callback(null, false); // Return false instead of throwing to avoid Express 500
     }
   },
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Globally handle OPTIONS preflight requests
 
 app.use(express.json());
 
