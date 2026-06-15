@@ -3,7 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 const AuthContext = createContext(null);
 
 const API_URL = import.meta.env.VITE_API_URL || 
-  (window.location.hostname === 'localhost' ? '' : 'https://where-is-my-bus-production.up.railway.app');
+  (window.location.hostname === 'localhost' ? '' : 'https://where-is-my-bus-backend-olxt.onrender.com');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

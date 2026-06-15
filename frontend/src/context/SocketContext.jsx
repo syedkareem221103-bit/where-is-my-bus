@@ -22,7 +22,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Connect to WebSocket server directly
-    const socketUrl = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://where-is-my-bus-production.up.railway.app');
+    const socketUrl = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://where-is-my-bus-backend-olxt.onrender.com');
     
     const socketInstance = io(socketUrl, {
       auth: { token },
