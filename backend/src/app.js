@@ -23,6 +23,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5001',
   'https://where-is-my-bus.vercel.app',
+  'https://where-is-my-bus-beta.vercel.app',
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : [])
 ];
 
