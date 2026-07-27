@@ -1,0 +1,217 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { UserRole } from '@prisma/client';
+import env from '../../config/env';
+import { AuthRepository } from './auth.repository';
+import { initializeKeys } from '../../utils/crypto';
+import { ConflictError, UnauthorizedError, ForbiddenError, NotFoundError } from '../../errors';
+
+export interface RegisterDTO {
+  orgName: string;
+  subdomain: string;
+  contactEmail: string;
+  adminEmail: string;
+  adminPasswordHash: string;
+  firstName: string;
+  lastName: string;
+}
+
+export class AuthService {
+  private authRepository = new AuthRepository();
+
+  async register(dto: RegisterDTO) {
+    // 1. Validate domain uniqueness
+    const existingOrgBySubdomain = await this.authRepository.findOrganizationBySubdomain(dto.subdomain);
+    if (existingOrgBySubdomain) {
+      throw new ConflictError('An organization with this subdomain already exists');
+    }
+
+    const existingOrgByEmail = await this.authRepository.findOrganizationByEmail(dto.contactEmail);
+    if (existingOrgByEmail) {
+      throw new ConflictError('An organization with this contact email already exists');
+    }
+
+    // 2. Validate administrator uniqueness
+    const existingUser = await this.authRepository.findUserByEmail(dto.adminEmail);
+    if (existingUser) {
+      throw new ConflictError('A user with this email address already exists');
+    }
+
+    // 3. Hash administrator password securely
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(dto.adminPasswordHash, salt);
+
+    // 4. Create in Transaction
+    // Mock OrgType to SCHOOL and fill routeSettings, notifySettings, operatingSchedule with empty objects for compile
+    const { organization, admin } = await this.authRepository.createOrganizationWithAdmin(
+      {
+        organizationId: dto.subdomain,
+        name: dto.orgName,
+        type: 'SCHOOL',
+        routeSettings: {},
+        notifySettings: {},
+        operatingSchedule: {},
+      },
+      {
+        email: dto.adminEmail,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role: UserRole.ORG_ADMIN,
+        status: 'ACTIVE',
+      }
+    );
+
+    // 5. Generate credentials
+    const tokens = this.generateTokens({
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+      organizationId: admin.organizationId,
+    });
+
+    await this.authRepository.updateUserRefreshToken(admin.id, tokens.refreshToken);
+
+    return {
+      organization,
+      user: {
+        id: admin.id,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        role: admin.role,
+        status: admin.status,
+      },
+      ...tokens,
+    };
+  }
+
+  async login(email: string, passwordHash: string) {
+    const user = await this.authRepository.findUserByEmail(email);
+    if (!user) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedError('Your account has been deactivated. Please contact your administrator');
+    }
+
+    // Validate password match
+    const isPasswordValid = await bcrypt.compare(passwordHash, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    // Verify Organization is active (applicable only to non-SUPER_ADMIN users)
+    if (user.organizationId) {
+      const org = await prisma.organization.findUnique({
+        where: { id: user.organizationId },
+      });
+      if (!org || org.status !== 'ACTIVE') {
+        throw new ForbiddenError('Your organization has been suspended. Please contact customer support');
+      }
+    }
+
+    const tokens = this.generateTokens({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId,
+    });
+
+    await this.authRepository.updateUserRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+        organizationId: user.organizationId,
+      },
+      ...tokens,
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      const { publicKey } = initializeKeys();
+      const payload = jwt.verify(refreshToken, publicKey, { algorithms: ['ES256'] }) as any;
+      const user = await this.authRepository.findUserById(payload.id);
+
+      if (!user || user.status !== 'ACTIVE') {
+        throw new UnauthorizedError('Invalid refresh token');
+      }
+
+      // Check organization status
+      if (user.organizationId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: user.organizationId },
+        });
+        if (!org || org.status !== 'ACTIVE') {
+          throw new ForbiddenError('Your organization has been suspended');
+        }
+      }
+
+      const tokens = this.generateTokens({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        organizationId: user.organizationId,
+      });
+
+      await this.authRepository.updateUserRefreshToken(user.id, tokens.refreshToken);
+
+      return tokens;
+    } catch (error) {
+      throw new UnauthorizedError('Invalid or expired refresh token');
+    }
+  }
+
+  async logout(userId: string) {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    await this.authRepository.updateUserRefreshToken(userId, null);
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      status: user.status,
+      organizationId: user.organizationId,
+    };
+  }
+
+  private generateTokens(payload: { id: string; email: string; role: UserRole; organizationId: string | null }) {
+    const { privateKey } = initializeKeys();
+
+    const accessToken = jwt.sign(payload, privateKey, {
+      algorithm: 'ES256',
+      expiresIn: env.JWT_ACCESS_EXPIRY as any,
+    });
+
+    const refreshToken = jwt.sign({ id: payload.id }, privateKey, {
+      algorithm: 'ES256',
+      expiresIn: env.JWT_REFRESH_EXPIRY as any,
+    });
+
+    return { accessToken, refreshToken };
+  }
+}
+
+// Import schema client inside file to execute database checking in service layer where needed
+import { prisma } from '../../config/database';
+
+export default AuthService;

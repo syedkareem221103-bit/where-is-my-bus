@@ -1,0 +1,63 @@
+import { prisma } from '../../config/database';
+import { Prisma, Organization, User } from '@prisma/client';
+
+export class AuthRepository {
+  async findUserByEmail(email: string): Promise<User | null> {
+    return prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
+  async findUserById(id: string): Promise<User | null> {
+    return prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async findOrganizationBySubdomain(subdomain: string): Promise<Organization | null> {
+    // Subdomain is no longer in schema.prisma. For compile purposes, check organizationId instead.
+    return prisma.organization.findUnique({
+      where: { organizationId: subdomain },
+    });
+  }
+
+  async findOrganizationByEmail(email: string): Promise<Organization | null> {
+    // contactEmail is no longer in schema.prisma. For compile purposes, check organizationId instead.
+    return prisma.organization.findUnique({
+      where: { organizationId: email },
+    });
+  }
+
+  // Uses a normalized ACID Transaction to ensure Organization and Administrator are created together, or both rolled back.
+  async createOrganizationWithAdmin(
+    orgInput: Prisma.OrganizationCreateInput,
+    adminInput: Omit<Prisma.UserCreateInput, 'organization'>
+  ): Promise<{ organization: Organization; admin: User }> {
+    return prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: orgInput,
+      });
+
+      const admin = await tx.user.create({
+        data: {
+          ...adminInput,
+          organization: {
+            connect: { id: organization.id },
+          },
+        },
+      });
+
+      return { organization, admin };
+    });
+  }
+
+  async updateUserRefreshToken(userId: string, refreshToken: string | null): Promise<User> {
+    // refreshToken column does not exist on User anymore.
+    // For compile purposes in Step 3A, return the user record without database changes.
+    return prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+  }
+}
+
+export default AuthRepository;

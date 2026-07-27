@@ -1,0 +1,140 @@
+import bcryptjs from 'bcryptjs';
+import { userRepository } from './user.repository';
+import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
+import prisma from '../../config/database';
+import { Prisma, User, UserRole, UserStatus } from '@prisma/client';
+
+export class UserService {
+  private canManageRole(actorRole: UserRole, targetRole: UserRole): boolean {
+    if (actorRole === 'SUPER_ADMIN') return true;
+    if (actorRole === 'ORG_ADMIN' && targetRole !== 'SUPER_ADMIN') return true;
+    return false;
+  }
+
+  async createUser(data: any, actorId: string, actorRole: UserRole, organizationId: string): Promise<User> {
+    if (!this.canManageRole(actorRole, data.role)) {
+      throw new ForbiddenError('You do not have permission to assign this role');
+    }
+
+    const existing = await userRepository.findByEmail(data.email);
+    if (existing) {
+      throw new ConflictError('User with this email already exists');
+    }
+
+    const salt = await bcryptjs.genSalt(10);
+    const passwordHash = await bcryptjs.hash(data.password, salt);
+
+    const user = await userRepository.create({
+      email: data.email,
+      passwordHash,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      role: data.role,
+      organization: { connect: { organizationId } }
+    });
+
+    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+    
+    await prisma.auditLog.create({
+      data: {
+        action: 'USER_CREATED',
+        userId: actorId,
+        organizationId: actor!.organizationId,
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, role: user.role },
+        ipAddress: '0.0.0.0',
+      },
+    });
+
+    return user;
+  }
+
+  async getUsers(organizationId: string, page: number, limit: number, role?: UserRole) {
+    const skip = (page - 1) * limit;
+    const { data, total } = await userRepository.findAll(organizationId, skip, limit, role);
+
+    return {
+      users: data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getUser(id: string, organizationId: string): Promise<User> {
+    const user = await userRepository.findById(id, organizationId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    return user;
+  }
+
+  async updateUser(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole): Promise<User> {
+    const user = await this.getUser(id, organizationId);
+
+    // If updating role, check privileges
+    if (data.role && data.role !== user.role) {
+      if (!this.canManageRole(actorRole, data.role) || !this.canManageRole(actorRole, user.role)) {
+        throw new ForbiddenError('You do not have permission to change to or from this role');
+      }
+    }
+
+    // A user cannot suspend/deactivate or change their own role unless they are SUPER_ADMIN (and even then, standard REST APIs usually block this to prevent lockouts, but we'll allow role checks above to handle it or block self-modification of sensitive fields).
+    // The controller will ensure self-updates only pass firstName/lastName.
+
+    const updateData: Prisma.UserUpdateInput = {
+      ...(data.firstName && { firstName: data.firstName }),
+      ...(data.lastName && { lastName: data.lastName }),
+      ...(data.role && { role: data.role }),
+      ...(data.status && { status: data.status }),
+    };
+
+    const updated = await userRepository.update(id, organizationId, updateData);
+
+    const action = data.role && data.role !== user.role ? 'USER_ROLE_CHANGED' : 'USER_UPDATED';
+
+    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+
+    await prisma.auditLog.create({
+      data: {
+        action,
+        userId: actorId,
+        organizationId: actor!.organizationId,
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
+        ipAddress: '0.0.0.0',
+      },
+    });
+
+    return updated;
+  }
+
+  async deleteUser(id: string, organizationId: string, actorId: string, actorRole: UserRole): Promise<User> {
+    const user = await this.getUser(id, organizationId);
+
+    if (id === actorId) {
+      throw new ForbiddenError('You cannot delete your own account');
+    }
+
+    if (!this.canManageRole(actorRole, user.role)) {
+      throw new ForbiddenError('You do not have permission to delete this user');
+    }
+
+    const deleted = await userRepository.update(id, organizationId, { status: UserStatus.DEACTIVATED });
+
+    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'USER_DEACTIVATED',
+        userId: actorId,
+        organizationId: actor!.organizationId,
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId },
+        ipAddress: '0.0.0.0',
+      },
+    });
+
+    return deleted;
+  }
+}
+
+export const userService = new UserService();

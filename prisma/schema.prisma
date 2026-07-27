@@ -1,0 +1,430 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id                String          @id @default(uuid())
+  organizationId    String          @unique
+  name              String
+  type              OrgType
+  timezone          String          @default("UTC")
+  attendancePolicy  AttendPolicy    @default(AUTO_ABSENT)
+  routeSettings     Json // Optimized path parameters
+  notifySettings    Json // Carriers setups (SMS, Push)
+  operatingSchedule Json // Peak operating hours boundaries
+  status            OrgStatus       @default(ACTIVE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  users             User[]
+  vehicles          Vehicle[]
+  routes            Route[]
+  auditLogs         AuditLog[]
+  incidents         Incident[]
+  dataPurgeLogs     DataPurgeLog[]
+  students          Student[]
+  parentChildren    ParentChild[]
+  driverLicenses    DriverLicense[]
+  studentStops      StudentStop[]
+
+  @@index([organizationId])
+}
+
+enum OrgType {
+  SCHOOL
+  COLLEGE
+  UNIVERSITY
+  OTHER
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AttendPolicy {
+  AUTO_PRESENT
+  AUTO_ABSENT
+}
+
+model User {
+  id                  String                   @id @default(uuid())
+  organizationId      String
+  email               String                   @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  role                UserRole
+  status              UserStatus               @default(ACTIVE)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  organization        Organization             @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  driverLicense       DriverLicense?
+  parentChildren      ParentChild[]
+  deviceSessions      DeviceSession[]
+  trips               Trip[]
+  notifyPrefs         NotificationPreference[]
+  resolvedIncidents   Incident[]               @relation("IncidentResolver")
+  privacyExports      PrivacyExport[]
+  auditLogs           AuditLog[]
+  outboxNotifications OutboxNotification[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, email])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  OPERATOR
+  DRIVER
+  PARENT
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+model ParentChild {
+  id               String       @id @default(uuid())
+  organizationId   String
+  parentId         String
+  studentId        String
+  relationshipType String
+  createdAt        DateTime     @default(now())
+  organization     Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  parent           User         @relation(fields: [parentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  student          Student      @relation(fields: [studentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+model Student {
+  id              String            @id @default(uuid())
+  organizationId  String
+  studentNumber   String
+  firstName       String
+  lastName        String
+  grade           String?
+  status          StudentStatus     @default(ACTIVE)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  organization    Organization      @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  parentChildren  ParentChild[]
+  stopAssignments StudentStop[]
+  attendanceLogs  DailyAttendance[]
+  privacyExports  PrivacyExport[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, studentNumber])
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model DriverLicense {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String       @unique
+  licenseNumber  String       @unique
+  expiryDate     DateTime
+  licenseClass   String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  user           User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Vehicle {
+  id             String        @id @default(uuid())
+  organizationId String
+  registrationNo String        @unique
+  capacity       Int
+  status         VehicleStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  trips          Trip[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, registrationNo])
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+model Route {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  version        Int          @default(1)
+  status         RouteStatus  @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  stops          Stop[]
+  schedules      Schedule[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+}
+
+enum RouteStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Stop {
+  id             String        @id @default(uuid())
+  organizationId String
+  routeId        String
+  name           String
+  latitude       Float
+  longitude      Float
+  sequenceOrder  Int
+  route          Route         @relation(fields: [routeId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  students       StudentStop[]
+
+  @@unique([id, organizationId])
+  @@index([routeId, sequenceOrder])
+}
+
+model StudentStop {
+  id             String       @id @default(uuid())
+  organizationId String
+  studentId      String
+  stopId         String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  student        Student      @relation(fields: [studentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  stop           Stop         @relation(fields: [stopId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([studentId, stopId])
+}
+
+model Schedule {
+  id             String            @id @default(uuid())
+  organizationId String
+  routeId        String
+  name           String
+  cutoffTime     String
+  operatingDays  Int[]
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  route          Route             @relation(fields: [routeId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  attendanceLogs DailyAttendance[]
+  trips          Trip[]
+
+  @@unique([id, organizationId])
+  @@index([routeId])
+}
+
+model DailyAttendance {
+  id             String           @id @default(uuid())
+  organizationId String
+  scheduleId     String
+  studentId      String
+  date           String
+  status         AttendanceStatus @default(PENDING)
+  isLocked       Boolean          @default(false)
+  updatedBy      String?
+  updatedAt      DateTime         @updatedAt
+  schedule       Schedule         @relation(fields: [scheduleId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  student        Student          @relation(fields: [studentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([scheduleId, studentId, date])
+  @@index([date, status])
+}
+
+enum AttendanceStatus {
+  PENDING
+  PRESENT
+  ABSENT
+}
+
+model Trip {
+  id             String               @id @default(uuid())
+  organizationId String
+  scheduleId     String
+  vehicleId      String
+  driverId       String
+  status         TripStatus           @default(SCHEDULED)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  schedule       Schedule             @relation(fields: [scheduleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  vehicle        Vehicle              @relation(fields: [vehicleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  driver         User                 @relation(fields: [driverId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  pings          TripPing[]
+  notifications  OutboxNotification[]
+  incidents      Incident[]
+
+  @@unique([id, organizationId])
+  @@index([status, driverId])
+}
+
+enum TripStatus {
+  SCHEDULED
+  ATTENDANCE_OPEN
+  ATTENDANCE_CLOSED
+  ROUTE_OPTIMIZED
+  READY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EMERGENCY
+}
+
+model TripPing {
+  id                String   @id @default(uuid())
+  organizationId    String
+  tripId            String
+  latitude          Float
+  longitude         Float
+  accuracy          Float    @default(1.0)
+  speed             Float
+  sequence          Int
+  timestamp         DateTime @default(now())
+  receivedTimestamp DateTime @default(now())
+  trip              Trip     @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([tripId, timestamp])
+}
+
+model Incident {
+  id              String         @id @default(uuid())
+  tripId          String
+  organizationId  String
+  status          IncidentStatus @default(ACTIVE)
+  latitude        Float
+  longitude       Float
+  reason          String
+  resolvedById    String?
+  resolutionNotes String?
+  resolvedAt      DateTime?
+  idempotencyKey  String
+  createdAt       DateTime       @default(now())
+  trip            Trip           @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization    Organization   @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  resolvedBy      User?          @relation("IncidentResolver", fields: [resolvedById, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status])
+}
+
+enum IncidentStatus {
+  ACTIVE
+  RESOLVED
+}
+
+model NotificationPreference {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String   @unique
+  smsEnabled     Boolean  @default(true)
+  pushEnabled    Boolean  @default(true)
+  emailEnabled   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model OutboxNotification {
+  id                 String             @id @default(uuid())
+  organizationId     String
+  tripId             String
+  recipientId        String
+  messageType        String
+  payload            Json
+  status             NotificationStatus @default(PENDING)
+  retryCount         Int                @default(0)
+  nextRetryTimestamp DateTime?
+  errorMessage       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  trip               Trip               @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  recipient          User               @relation(fields: [recipientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([status, retryCount])
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+  DLQ
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  action         String
+  metadata       Json
+  ipAddress      String
+  timestamp      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  user           User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
+}
+
+model DeviceSession {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  tokenHash      String   @unique
+  deviceType     String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
+}
+
+model PrivacyExport {
+  id             String       @id @default(uuid())
+  organizationId String
+  parentId       String
+  studentId      String
+  tokenHash      String       @unique
+  status         ExportStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  parent         User         @relation(fields: [parentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([expiresAt, status])
+}
+
+enum ExportStatus {
+  PENDING
+  COMPLETED
+  DOWNLOADED
+  EXPIRED
+}
+
+model DataPurgeLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  purgedEntity   String
+  purgedId       String
+  purgedBy       String
+  timestamp      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+
+  @@index([organizationId, timestamp])
+}

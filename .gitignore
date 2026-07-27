@@ -1,0 +1,65 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+secrets/
+*.secret
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+.next/
+out/
+.vite/
+.cache/
+tmp/
+temp/
+
+# Runtime and log files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.pid.lock
+
+# Testing outputs
+playwright-report/
+test-results/
+.nyc_output/
+
+# Prisma and database temporary files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local tooling files
+*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
