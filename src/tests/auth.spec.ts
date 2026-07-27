@@ -7,9 +7,8 @@ import { initializeKeys, getJWKS, timingSafeCompare, resetCachedKeys } from '../
 import env from '../config/env';
 
 // Mock the Prisma client globally to isolate endpoints from actual DB networking
-jest.mock('../config/database', () => ({
-  __esModule: true,
-  default: {
+jest.mock('../config/database', () => {
+  const mockPrisma = {
     organization: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -23,23 +22,13 @@ jest.mock('../config/database', () => ({
       update: jest.fn(),
     },
     $transaction: jest.fn(),
-  },
-  prisma: {
-    organization: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      create: jest.fn(),
-    },
-    user: {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    $transaction: jest.fn(),
-  },
-}));
+  };
+  return {
+    __esModule: true,
+    default: mockPrisma,
+    prisma: mockPrisma,
+  };
+});
 
 describe('Authentication & Security Gate Integration Tests', () => {
   let privateKey: string;
