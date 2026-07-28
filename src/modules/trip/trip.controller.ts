@@ -110,6 +110,28 @@ export class TripController {
       next(error);
     }
   };
+
+  updateStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const organizationId = req.user!.organizationId;
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!organizationId) {
+        throw new BadRequestError('Only organization members can update trip status');
+      }
+
+      const trip = await this.tripService.updateTripStatus(organizationId, id, status);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Trip status updated successfully',
+        data: { trip },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export default TripController;

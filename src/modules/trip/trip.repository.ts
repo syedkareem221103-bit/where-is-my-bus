@@ -20,7 +20,9 @@ export class TripRepository {
       where: {
         driverId,
         organizationId,
-        status: 'ACTIVE',
+        status: {
+          in: ['STARTED', 'EN_ROUTE', 'AT_STOP', 'EMERGENCY', 'ACTIVE']
+        },
       },
     });
   }

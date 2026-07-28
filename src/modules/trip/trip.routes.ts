@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { TripController } from './trip.controller';
 import { authenticateUser, requireRoles } from '../../middlewares/auth.middleware';
 import { validateRequest } from '../../middlewares/validate.middleware';
-import { startTripSchema, recordPingSchema, tripIdParams } from './trip.validation';
+import { startTripSchema, recordPingSchema, tripIdParams, updateTripStatusSchema } from './trip.validation';
 import { UserRole } from '@prisma/client';
 
 const router = Router();
@@ -13,6 +13,7 @@ router.use(authenticateUser);
 // Driver endpoints for controlling trip status and GPS ingestion
 router.post('/start', requireRoles(UserRole.DRIVER), validateRequest(startTripSchema), controller.start);
 router.post('/:id/stop', requireRoles(UserRole.DRIVER), validateRequest(tripIdParams), controller.end);
+router.post('/:id/status', requireRoles(UserRole.DRIVER), validateRequest(updateTripStatusSchema), controller.updateStatus);
 router.post('/:id/ping', requireRoles(UserRole.DRIVER), validateRequest(recordPingSchema), controller.ping);
 
 // Passenger, Driver, and Admin endpoints for tracking buses

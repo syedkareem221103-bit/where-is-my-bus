@@ -30,3 +30,20 @@ export const recordPingSchema = z.object({
     speedKmh: z.coerce.number().min(0, 'Speed cannot be negative').nullable().optional(),
   }),
 });
+
+export const updateTripStatusSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid Trip ID format'),
+  }),
+  body: z.object({
+    status: z.enum([
+      'SCHEDULED',
+      'STARTED',
+      'EN_ROUTE',
+      'AT_STOP',
+      'COMPLETED',
+      'CANCELLED',
+      'EMERGENCY',
+    ]),
+  }),
+});

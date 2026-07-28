@@ -2,6 +2,7 @@ import { TripRepository } from './trip.repository';
 import { ScheduleService } from '../schedule/schedule.service';
 import { NotFoundError, BadRequestError } from '../../errors';
 import { TripStatus } from '@prisma/client';
+import { TripStateMachine } from './trip.state-machine';
 
 export class TripService {
   private tripRepository = new TripRepository();
@@ -28,15 +29,17 @@ export class TripService {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
       organizationId,
-      status: TripStatus.ACTIVE,
+      status: TripStatus.STARTED,
     });
   }
 
   async endTrip(organizationId: string, id: string) {
     const trip = await this.tripRepository.findByIdAndOrg(id, organizationId);
-    if (!trip || trip.status !== TripStatus.ACTIVE) {
-      throw new BadRequestError('Trip not found or not active');
+    if (!trip) {
+      throw new NotFoundError('Trip not found');
     }
+
+    TripStateMachine.validateTransition(trip.status, TripStatus.COMPLETED);
 
     return this.tripRepository.update(id, organizationId, {
       status: TripStatus.COMPLETED,
@@ -55,7 +58,7 @@ export class TripService {
     }
   ) {
     const trip = await this.tripRepository.findByIdAndOrg(tripId, organizationId);
-    if (!trip || trip.status !== TripStatus.ACTIVE) {
+    if (!trip || !TripStateMachine.isActiveState(trip.status)) {
       throw new BadRequestError('Trip not found or not active');
     }
 
@@ -91,6 +94,19 @@ export class TripService {
       speed: ping.speed,
       timestamp: ping.timestamp,
     };
+  }
+
+  async updateTripStatus(organizationId: string, id: string, newStatus: TripStatus) {
+    const trip = await this.tripRepository.findByIdAndOrg(id, organizationId);
+    if (!trip) {
+      throw new NotFoundError('Trip not found');
+    }
+
+    TripStateMachine.validateTransition(trip.status, newStatus);
+
+    return this.tripRepository.update(id, organizationId, {
+      status: newStatus,
+    });
   }
 }
 
