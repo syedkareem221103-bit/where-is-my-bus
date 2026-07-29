@@ -3,13 +3,13 @@ import app from './app';
 import env from './config/env';
 import prisma from './config/database';
 import logger from './utils/logger';
-import SocketService from './services/socket.service';
+import LiveTrackingGateway from './services/live-tracking.gateway';
 
 const server = createServer(app);
 
 // Initialize real-time Socket Gateway
-const socketService = SocketService.getInstance();
-socketService.init(server);
+const socketGateway = LiveTrackingGateway.getInstance();
+socketGateway.init(server);
 
 async function bootstrap() {
   try {

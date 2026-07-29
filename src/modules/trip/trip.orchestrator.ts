@@ -5,6 +5,7 @@ import { TripStateMachine } from './trip.state-machine';
 import { TripStatus } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors';
+import { LiveTrackingService } from '../../services/live-tracking.service';
 
 export class TripLifecycleOrchestrator {
   private tripRepository = new TripRepository();
@@ -53,6 +54,16 @@ export class TripLifecycleOrchestrator {
       ipAddress,
     });
 
+    const trackingService = LiveTrackingService.getInstance();
+    trackingService.publishEvent(`trip:${updatedTrip.id}`, 'trip.status.updated', {
+      tripId: updatedTrip.id,
+      oldStatus: existingTrip.status,
+      newStatus: updatedTrip.status,
+    });
+    trackingService.publishEvent(`trip:${updatedTrip.id}`, 'trip.started', {
+      tripId: updatedTrip.id,
+    });
+
     return updatedTrip;
   }
 
@@ -72,6 +83,16 @@ export class TripLifecycleOrchestrator {
       action: 'TRIP_STATUS_UPDATED',
       metadata: { tripId: updatedTrip.id, from: trip.status, to: updatedTrip.status },
       ipAddress,
+    });
+
+    const trackingService = LiveTrackingService.getInstance();
+    trackingService.publishEvent(`trip:${updatedTrip.id}`, 'trip.status.updated', {
+      tripId: updatedTrip.id,
+      oldStatus: trip.status,
+      newStatus: updatedTrip.status,
+    });
+    trackingService.publishEvent(`trip:${updatedTrip.id}`, 'trip.completed', {
+      tripId: updatedTrip.id,
     });
 
     return updatedTrip;
@@ -99,6 +120,12 @@ export class TripLifecycleOrchestrator {
       action: 'TRIP_STATUS_UPDATED',
       metadata: { tripId: updatedTrip.id, from: trip.status, to: updatedTrip.status },
       ipAddress,
+    });
+
+    LiveTrackingService.getInstance().publishEvent(`trip:${updatedTrip.id}`, 'trip.status.updated', {
+      tripId: updatedTrip.id,
+      oldStatus: trip.status,
+      newStatus: updatedTrip.status,
     });
 
     return updatedTrip;

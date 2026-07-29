@@ -2,6 +2,8 @@ import { TripRepository } from './trip.repository';
 import { TripStateMachine } from './trip.state-machine';
 import { BadRequestError } from '../../errors';
 import { TripPing } from '@prisma/client';
+import { LiveTrackingService } from '../../services/live-tracking.service';
+import { TripService } from './trip.service';
 
 export class GpsTrackingService {
   private tripRepository = new TripRepository();
@@ -49,6 +51,28 @@ export class GpsTrackingService {
       timestamp: recordedAtDate,
       receivedTimestamp: new Date(),
     });
+
+    LiveTrackingService.getInstance().publishEvent(`trip:${tripId}`, 'trip.location.updated', {
+      tripId,
+      latitude: ping.latitude,
+      longitude: ping.longitude,
+      speed: ping.speed,
+      heading: ping.heading,
+      recordedAt: ping.timestamp.toISOString(),
+    });
+
+    // Also calculate and broadcast ETA
+    try {
+      const tripService = new TripService();
+      const etaData = await tripService.getEta(organizationId, tripId);
+      LiveTrackingService.getInstance().publishEvent(`trip:${tripId}`, 'trip.eta.updated', {
+        tripId,
+        nextStop: etaData.nextStop,
+        remainingStops: etaData.remainingStops,
+      });
+    } catch (error) {
+      // Ignore ETA calculation errors if stops are empty or similar
+    }
 
     return { ping, discarded: false };
   }

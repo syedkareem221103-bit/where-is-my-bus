@@ -83,6 +83,7 @@ describe('GpsTrackingService', () => {
       mockTripRepository.createPing.mockResolvedValue({
         id: 'ping-2',
         sequence: 6,
+        timestamp: new Date('2024-01-01T10:01:00Z'),
       } as any);
 
       const result = await service.recordPing(orgId, tripId, {
@@ -114,6 +115,7 @@ describe('GpsTrackingService', () => {
       mockTripRepository.createPing.mockResolvedValue({
         id: 'ping-1',
         sequence: 1,
+        timestamp: new Date(),
       } as any);
 
       const result = await service.recordPing(orgId, tripId, {
