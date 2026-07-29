@@ -53,34 +53,7 @@ export class TripService {
     return this.orchestrator.endTrip(organizationId, id, actorId, ipAddress);
   }
 
-  async recordPing(
-    organizationId: string,
-    tripId: string,
-    data: {
-      latitude: number;
-      longitude: number;
-      speed: number;
-      accuracy: number;
-      sequence: number;
-    }
-  ) {
-    const trip = await this.tripRepository.findByIdAndOrg(tripId, organizationId);
-    if (!trip || !TripStateMachine.isActiveState(trip.status)) {
-      throw new BadRequestError('Trip not found or not active');
-    }
 
-    return this.tripRepository.createPing({
-      tripId,
-      organizationId,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      speed: data.speed,
-      accuracy: data.accuracy,
-      sequence: data.sequence,
-      timestamp: new Date(),
-      receivedTimestamp: new Date(),
-    });
-  }
 
   async getLatestLocation(organizationId: string, id: string) {
     const trip = await this.tripRepository.findByIdAndOrg(id, organizationId);

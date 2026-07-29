@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { TripService } from './trip.service';
+import { GpsTrackingService } from './gps.tracking.service';
 import { BadRequestError } from '../../errors';
 
 export class TripController {
   private tripService = new TripService();
+  private gpsTrackingService = new GpsTrackingService();
 
   assign = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -83,23 +85,24 @@ export class TripController {
     try {
       const organizationId = req.user!.organizationId;
       const { id } = req.params;
-      const { latitude, longitude, speed, accuracy, sequence } = req.body;
+      const { latitude, longitude, speed, heading, accuracy, recordedAt } = req.body;
 
       if (!organizationId) {
         throw new BadRequestError('Only organization members can send telemetry');
       }
 
-      const ping = await this.tripService.recordPing(organizationId, id, {
+      const { ping, discarded } = await this.gpsTrackingService.recordPing(organizationId, id, {
         latitude,
         longitude,
         speed,
+        heading,
         accuracy,
-        sequence,
+        recordedAt,
       });
 
       res.status(200).json({
         status: 'success',
-        message: 'Telemetry recorded successfully',
+        message: discarded ? 'Telemetry discarded (stale/duplicate)' : 'Telemetry recorded successfully',
         data: { ping },
       });
     } catch (error) {

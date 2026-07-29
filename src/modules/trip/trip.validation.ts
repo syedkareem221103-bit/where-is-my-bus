@@ -27,7 +27,12 @@ export const recordPingSchema = z.object({
       required_error: 'Longitude is required',
     }).min(-180, 'Longitude must be between -180 and 180').max(180, 'Longitude must be between -180 and 180'),
     
-    speedKmh: z.coerce.number().min(0, 'Speed cannot be negative').nullable().optional(),
+    speed: z.coerce.number().min(0, 'Speed cannot be negative').optional(),
+    heading: z.coerce.number().min(0, 'Heading cannot be negative').max(360, 'Heading cannot be greater than 360').optional(),
+    accuracy: z.coerce.number().min(0, 'Accuracy cannot be negative').optional(),
+    recordedAt: z.string({
+      required_error: 'recordedAt is required',
+    }).datetime('recordedAt must be a valid ISO-8601 string'),
   }),
 });
 

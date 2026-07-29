@@ -305,6 +305,7 @@ model TripPing {
   longitude         Float
   accuracy          Float    @default(1.0)
   speed             Float
+  heading           Float?
   sequence          Int
   timestamp         DateTime @default(now())
   receivedTimestamp DateTime @default(now())
