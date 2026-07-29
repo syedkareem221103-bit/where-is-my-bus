@@ -46,7 +46,7 @@ export class TripController {
         scheduleId,
         vehicleId,
         driverId,
-      });
+      }, req.user!.id, req.ip);
 
       res.status(201).json({
         status: 'success',
@@ -67,7 +67,7 @@ export class TripController {
         throw new BadRequestError('Only organization members can end trips');
       }
 
-      const trip = await this.tripService.endTrip(organizationId, id);
+      const trip = await this.tripService.endTrip(organizationId, id, req.user!.id, req.ip);
 
       res.status(200).json({
         status: 'success',
@@ -148,7 +148,7 @@ export class TripController {
         throw new BadRequestError('Only organization members can update trip status');
       }
 
-      const trip = await this.tripService.updateTripStatus(organizationId, id, status);
+      const trip = await this.tripService.updateTripStatus(organizationId, id, status, req.user!.id, req.ip);
 
       res.status(200).json({
         status: 'success',

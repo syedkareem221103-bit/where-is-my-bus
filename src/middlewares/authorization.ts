@@ -19,7 +19,7 @@ export const requireOrganization = (req: Request, _res: Response, next: NextFunc
 export const auditAuthorizationFailure = async (req: Request, reason: string): Promise<void> => {
   try {
     if (req.user) {
-      await prisma.auditLog.create({
+      await prisma.auditLog?.create({
         data: {
           action: 'AUTHORIZATION_FAILURE',
           organizationId: req.user.org,
