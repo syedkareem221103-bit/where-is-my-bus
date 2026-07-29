@@ -2,13 +2,16 @@ import { Router } from 'express';
 import { TripController } from './trip.controller';
 import { authenticateUser, requireRoles } from '../../middlewares/auth.middleware';
 import { validateRequest } from '../../middlewares/validate.middleware';
-import { startTripSchema, recordPingSchema, tripIdParams, updateTripStatusSchema } from './trip.validation';
+import { startTripSchema, recordPingSchema, tripIdParams, updateTripStatusSchema, assignTripSchema } from './trip.validation';
 import { UserRole } from '@prisma/client';
 
 const router = Router();
 const controller = new TripController();
 
 router.use(authenticateUser);
+
+// Trip Assignment
+router.post('/assign', requireRoles(UserRole.ORG_ADMIN, UserRole.OPERATOR), validateRequest(assignTripSchema), controller.assign);
 
 // Driver endpoints for controlling trip status and GPS ingestion
 router.post('/start', requireRoles(UserRole.DRIVER), validateRequest(startTripSchema), controller.start);

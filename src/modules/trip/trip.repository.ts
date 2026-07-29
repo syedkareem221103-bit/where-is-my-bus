@@ -27,6 +27,39 @@ export class TripRepository {
     });
   }
 
+  async findAssignedTripByDriverAndDate(driverId: string, serviceDate: string, organizationId: string): Promise<Trip | null> {
+    return prisma.trip.findFirst({
+      where: {
+        driverId,
+        serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
+  }
+
+  async findAssignedTripByVehicleAndDate(vehicleId: string, serviceDate: string, organizationId: string): Promise<Trip | null> {
+    return prisma.trip.findFirst({
+      where: {
+        vehicleId,
+        serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
+  }
+
+  async findAssignedTripByScheduleAndDate(scheduleId: string, serviceDate: string, organizationId: string): Promise<Trip | null> {
+    return prisma.trip.findFirst({
+      where: {
+        scheduleId,
+        serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
+  }
+
   async update(id: string, organizationId: string, data: Prisma.TripUpdateInput): Promise<Trip> {
     return prisma.trip.update({
       where: {

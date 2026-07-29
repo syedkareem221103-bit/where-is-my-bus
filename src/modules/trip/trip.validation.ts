@@ -47,3 +47,13 @@ export const updateTripStatusSchema = z.object({
     ]),
   }),
 });
+
+export const assignTripSchema = z.object({
+  body: z.object({
+    vehicleId: z.string({ required_error: 'Vehicle ID is required' }).uuid('Invalid Vehicle ID format'),
+    driverId: z.string({ required_error: 'Driver ID is required' }).uuid('Invalid Driver ID format'),
+    routeId: z.string({ required_error: 'Route ID is required' }).uuid('Invalid Route ID format'),
+    scheduleId: z.string({ required_error: 'Schedule ID is required' }).uuid('Invalid Schedule ID format'),
+    serviceDate: z.string({ required_error: 'Service Date is required' }).regex(/^\d{4}-\d{2}-\d{2}$/, 'Service Date must be in YYYY-MM-DD format'),
+  }),
+});

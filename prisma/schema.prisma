@@ -179,6 +179,7 @@ model Route {
   organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
   stops          Stop[]
   schedules      Schedule[]
+  trips          Trip[]
 
   @@unique([id, organizationId])
   @@index([organizationId])
@@ -262,12 +263,15 @@ model Trip {
   id             String               @id @default(uuid())
   organizationId String
   scheduleId     String
+  routeId        String
+  serviceDate    String
   vehicleId      String
   driverId       String
   status         TripStatus           @default(SCHEDULED)
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   schedule       Schedule             @relation(fields: [scheduleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  route          Route                @relation(fields: [routeId, organizationId], references: [id, organizationId], onDelete: Restrict)
   vehicle        Vehicle              @relation(fields: [vehicleId, organizationId], references: [id, organizationId], onDelete: Restrict)
   driver         User                 @relation(fields: [driverId, organizationId], references: [id, organizationId], onDelete: Restrict)
   pings          TripPing[]

@@ -3,10 +3,36 @@ import { ScheduleService } from '../schedule/schedule.service';
 import { NotFoundError, BadRequestError } from '../../errors';
 import { TripStatus } from '@prisma/client';
 import { TripStateMachine } from './trip.state-machine';
+import { prisma } from '../../config/database';
 
 export class TripService {
   private tripRepository = new TripRepository();
   private scheduleService = new ScheduleService();
+
+  async assignTrip(
+    organizationId: string,
+    data: {
+      vehicleId: string;
+      driverId: string;
+      routeId: string;
+      scheduleId: string;
+      serviceDate: string;
+    }
+  ) {
+    const { TripAssignmentEngine } = await import('./trip.assignment.engine');
+    const engine = new TripAssignmentEngine();
+    await engine.validateAssignment(organizationId, data);
+
+    return this.tripRepository.create({
+      organizationId,
+      vehicleId: data.vehicleId,
+      driverId: data.driverId,
+      routeId: data.routeId,
+      scheduleId: data.scheduleId,
+      serviceDate: data.serviceDate,
+      status: TripStatus.SCHEDULED,
+    });
+  }
 
   async startTrip(
     organizationId: string,
@@ -16,19 +42,38 @@ export class TripService {
       driverId: string;
     }
   ) {
-    const schedule = await this.scheduleService.getScheduleById(organizationId, data.scheduleId);
+    // Determine today's serviceDate based on organization timezone
+    const organization = await prisma.organization.findUnique({ where: { organizationId } });
+    if (!organization) throw new NotFoundError('Organization not found');
 
-    // 2. Verify no active trip exists for this driver
-    const activeTrip = await this.tripRepository.findActiveByDriver(data.driverId, organizationId);
-    if (activeTrip) {
-      throw new BadRequestError('Driver already has an active trip');
+    const serviceDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: organization.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+
+    const existingTrip = await this.tripRepository.findAssignedTripByScheduleAndDate(
+      data.scheduleId,
+      serviceDate,
+      organizationId
+    );
+
+    if (!existingTrip) {
+      throw new BadRequestError('No scheduled trip found for today');
     }
-
-    return this.tripRepository.create({
-      scheduleId: data.scheduleId,
-      vehicleId: data.vehicleId,
-      driverId: data.driverId,
-      organizationId,
+    if (existingTrip.status === 'COMPLETED') {
+      throw new BadRequestError('Completed trips cannot restart');
+    }
+    if (existingTrip.status === 'CANCELLED') {
+      throw new BadRequestError('Cancelled trips cannot restart');
+    }
+    if (existingTrip.status !== 'SCHEDULED') {
+      throw new BadRequestError('Trip is already active');
+    }
+    
+    // Update it to STARTED
+    return this.tripRepository.update(existingTrip.id, organizationId, {
       status: TripStatus.STARTED,
     });
   }

@@ -5,6 +5,33 @@ import { BadRequestError } from '../../errors';
 export class TripController {
   private tripService = new TripService();
 
+  assign = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const organizationId = req.user!.organizationId;
+      const { vehicleId, driverId, routeId, scheduleId, serviceDate } = req.body;
+
+      if (!organizationId) {
+        throw new BadRequestError('Only organization members can assign trips');
+      }
+
+      const trip = await this.tripService.assignTrip(organizationId, {
+        vehicleId,
+        driverId,
+        routeId,
+        scheduleId,
+        serviceDate,
+      });
+
+      res.status(201).json({
+        status: 'success',
+        message: 'Trip assigned successfully',
+        data: { trip },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   start = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const organizationId = req.user!.organizationId;
