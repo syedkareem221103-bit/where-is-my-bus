@@ -23,5 +23,6 @@ router.post('/:id/ping', requireRoles(UserRole.DRIVER), requireOwnership('trip')
 // Passenger, Driver, and Admin endpoints for tracking buses
 router.get('/active', controller.getActive);
 router.get('/:id/location', validateRequest(tripIdParams), controller.getLocation);
+router.get('/:id/eta', validateRequest(tripIdParams), controller.getEta);
 
 export default router;

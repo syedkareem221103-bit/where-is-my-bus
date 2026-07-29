@@ -162,6 +162,26 @@ export class TripController {
       next(error);
     }
   };
+
+  getEta = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const organizationId = req.user!.organizationId;
+      const { id } = req.params;
+
+      if (!organizationId) {
+        throw new BadRequestError('Only organization members can get ETAs');
+      }
+
+      const etaData = await this.tripService.getEta(organizationId, id);
+
+      res.status(200).json({
+        status: 'success',
+        data: etaData,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export default TripController;

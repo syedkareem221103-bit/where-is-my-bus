@@ -81,6 +81,13 @@ export class TripRepository {
       orderBy: { timestamp: 'desc' },
     });
   }
+
+  async findStopsByRouteId(routeId: string, organizationId: string) {
+    return prisma.stop.findMany({
+      where: { routeId, organizationId },
+      orderBy: { sequenceOrder: 'asc' },
+    });
+  }
 }
 
 export default TripRepository;

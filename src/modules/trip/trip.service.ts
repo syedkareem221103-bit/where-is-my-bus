@@ -5,6 +5,7 @@ import { TripStatus } from '@prisma/client';
 import { TripStateMachine } from './trip.state-machine';
 import { prisma } from '../../config/database';
 import { TripLifecycleOrchestrator } from './trip.orchestrator';
+import { EtaEngine } from './eta.engine';
 
 export class TripService {
   private tripRepository = new TripRepository();
@@ -54,6 +55,42 @@ export class TripService {
   }
 
 
+
+  async getEta(organizationId: string, id: string) {
+    const trip = await this.tripRepository.findByIdAndOrg(id, organizationId);
+    if (!trip) {
+      throw new NotFoundError('Trip not found');
+    }
+
+    if (!TripStateMachine.isActiveState(trip.status)) {
+      throw new BadRequestError('Trip is not active');
+    }
+
+    const ping = await this.tripRepository.findLatestPing(id, organizationId);
+    if (!ping) {
+      throw new BadRequestError('GPS telemetry unavailable');
+    }
+
+    const stops = await this.tripRepository.findStopsByRouteId(trip.routeId, organizationId);
+    if (stops.length === 0) {
+      throw new BadRequestError('Route has no stops');
+    }
+
+    const etaEngine = new EtaEngine();
+    const result = etaEngine.calculateEta(ping, stops);
+
+    return {
+      tripId: id,
+      generatedAt: new Date().toISOString(),
+      confidence: result.confidence,
+      currentLocation: {
+        latitude: ping.latitude,
+        longitude: ping.longitude,
+      },
+      nextStop: result.nextStop,
+      remainingStops: result.remainingStops,
+    };
+  }
 
   async getLatestLocation(organizationId: string, id: string) {
     const trip = await this.tripRepository.findByIdAndOrg(id, organizationId);

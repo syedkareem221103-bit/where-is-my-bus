@@ -15,6 +15,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
+  ETA_DEFAULT_SPEED_KMH: z.coerce.number().default(20),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
     if (!data.JWT_PRIVATE_KEY) {
