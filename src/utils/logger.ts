@@ -31,15 +31,20 @@ const format = winston.format.combine(
       )
 );
 
-const transports = [
-  new winston.transports.Console(),
-  // For production, we can also log warning/errors to a file
-  new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-  }),
-  new winston.transports.File({ filename: 'logs/combined.log' }),
+const transports: winston.transport[] = [
+  new winston.transports.Console()
 ];
+
+// In development, also log to files for local debugging convenience
+if (process.env.NODE_ENV !== 'production') {
+  transports.push(
+    new winston.transports.File({
+      filename: 'logs/error.log',
+      level: 'error',
+    }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  );
+}
 
 export const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',

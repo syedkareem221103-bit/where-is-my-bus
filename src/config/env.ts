@@ -17,6 +17,7 @@ const envSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
   ETA_DEFAULT_SPEED_KMH: z.coerce.number().default(20),
   DB_CONNECTION_LIMIT: z.coerce.number().default(10),
+  CORS_ORIGIN: z.string().default('*'),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
     if (!data.JWT_PRIVATE_KEY) {

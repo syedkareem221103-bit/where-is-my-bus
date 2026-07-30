@@ -8,6 +8,7 @@ import { errorHandler } from './errors/error-handler';
 import { initializeKeys } from './utils/crypto';
 import rateLimiter from './middlewares/rate-limiter';
 import prisma from './config/database';
+import env from './config/env';
 
 // Import Modular Routers
 import authRouter from './modules/auth/auth.routes';
@@ -26,6 +27,9 @@ const app: Express = express();
 // Initialize and validate cryptographic keys at startup
 initializeKeys();
 
+// Trust reverse proxies (e.g. AWS ALB, Nginx) for accurate rate limiting and IP logging
+app.set('trust proxy', 1);
+
 // 1. Basic Security & Setup Middlewares
 app.use(helmet({
   contentSecurityPolicy: {
@@ -38,7 +42,7 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false,
 }));
-app.use(cors({ origin: '*' })); // Custom restrict for production in real deployments
+app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json());
 
 // 2. Structured HTTP log forwarding to Winston

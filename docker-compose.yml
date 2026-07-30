@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: where-is-my-bus-backend:latest
+    container_name: wimb-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgresql://bus_admin:bus_password@postgres:5432/bus_db?schema=public
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - DB_CONNECTION_LIMIT=50
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bus_network
+
+  postgres:
+    image: postgres:16
+    container_name: wimb-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=bus_admin
+      - POSTGRES_PASSWORD=bus_password
+      - POSTGRES_DB=bus_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bus_admin -d bus_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bus_network
+
+  # Redis is included as an optional/future service for horizontal scaling/pubsub.
+  # Uncomment the block below in future sprints when required.
+  #
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: wimb-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - bus_network
+
+volumes:
+  postgres_data:
+  # redis_data:
+
+networks:
+  bus_network:
+    driver: bridge
