@@ -68,11 +68,11 @@ model User {
   parentChildren      ParentChild[]
   deviceSessions      DeviceSession[]
   trips               Trip[]
-  notifyPrefs         NotificationPreference[]
+  notifyPrefs         UserNotificationPreference[]
   resolvedIncidents   Incident[]               @relation("IncidentResolver")
   privacyExports      PrivacyExport[]
   auditLogs           AuditLog[]
-  outboxNotifications OutboxNotification[]
+  notifications       NotificationRecipient[]
 
   @@unique([id, organizationId])
   @@index([organizationId, email])
@@ -275,7 +275,7 @@ model Trip {
   vehicle        Vehicle              @relation(fields: [vehicleId, organizationId], references: [id, organizationId], onDelete: Restrict)
   driver         User                 @relation(fields: [driverId, organizationId], references: [id, organizationId], onDelete: Restrict)
   pings          TripPing[]
-  notifications  OutboxNotification[]
+  notifications  Notification[]
   incidents      Incident[]
 
   @@unique([id, organizationId])
@@ -340,44 +340,92 @@ enum IncidentStatus {
   RESOLVED
 }
 
-model NotificationPreference {
-  id             String   @id @default(uuid())
-  organizationId String
-  userId         String   @unique
-  smsEnabled     Boolean  @default(true)
-  pushEnabled    Boolean  @default(true)
-  emailEnabled   Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  user           User     @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
+model UserNotificationPreference {
+  id                String   @id @default(uuid())
+  organizationId    String
+  userId            String   @unique
+  smsEnabled        Boolean  @default(true)
+  pushEnabled       Boolean  @default(true)
+  emailEnabled      Boolean  @default(false)
+  inAppEnabled      Boolean  @default(true)
+  quietHoursStart   String?  // e.g. "22:00"
+  quietHoursEnd     String?  // e.g. "06:00"
+  timezone          String   @default("UTC")
+  language          String   @default("en")
+  emergencyOverride Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
 
   @@unique([userId, organizationId])
 }
 
-model OutboxNotification {
-  id                 String             @id @default(uuid())
-  organizationId     String
-  tripId             String
-  recipientId        String
-  messageType        String
-  payload            Json
-  status             NotificationStatus @default(PENDING)
-  retryCount         Int                @default(0)
-  nextRetryTimestamp DateTime?
-  errorMessage       String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  trip               Trip               @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  recipient          User               @relation(fields: [recipientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+model NotificationTemplate {
+  id             String   @id @default(uuid())
+  organizationId String
+  eventKey       String   // e.g., "trip.started"
+  channel        String   // IN_APP, EMAIL, SMS, PUSH
+  language       String   @default("en")
+  subject        String?
+  body           String   // Content with placeholders
+  version        Int      @default(1)
+  isActive       Boolean  @default(true)
+  auditFields    Json?    // e.g. { createdBy: "userId" }
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@index([status, retryCount])
+  @@unique([organizationId, eventKey, channel, language, version])
+  @@index([organizationId, eventKey, isActive])
 }
 
-enum NotificationStatus {
-  PENDING
+model Notification {
+  id             String       @id @default(uuid())
+  organizationId String
+  correlationId  String?      // for tracking across distributed systems
+  tripId         String?
+  eventKey       String
+  priority       String       // EMERGENCY, HIGH, NORMAL, LOW
+  payload        Json         // the raw data
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  
+  trip           Trip?        @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  recipients     NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id               String       @id @default(uuid())
+  organizationId   String
+  notificationId   String
+  userId           String
+  channel          String       // IN_APP, EMAIL, SMS, PUSH
+  status           NotificationDeliveryStatus @default(QUEUED)
+  retryCount       Int          @default(0)
+  errorMessage     String?
+  queuedAt         DateTime     @default(now())
+  processingAt     DateTime?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  failedAt         DateTime?
+  expiredAt        DateTime?
+  idempotencyKey   String?      @unique
+  
+  notification     Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  
+  @@index([organizationId, status])
+  @@index([userId, status])
+}
+
+enum NotificationDeliveryStatus {
+  QUEUED
   PROCESSING
+  SENT
   DELIVERED
+  READ
   FAILED
-  DLQ
+  EXPIRED
 }
 
 model AuditLog {
