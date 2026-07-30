@@ -33,11 +33,13 @@ describe('NotificationService', () => {
 
   it('should fan-out notifications correctly considering preferences', async () => {
     // User 1 has email enabled, others disabled
-    mockPrefRepo.getByUserId.mockImplementation(async (orgId, userId) => {
-      if (userId === 'user-1') {
-        return { emailEnabled: true, inAppEnabled: false, smsEnabled: false, pushEnabled: false, emergencyOverride: true } as any;
-      }
-      return null;
+    mockPrefRepo.getManyByUserIds.mockImplementation(async (orgId, userIds) => {
+      return userIds.map(userId => {
+        if (userId === 'user-1') {
+          return { userId, emailEnabled: true, inAppEnabled: false, smsEnabled: false, pushEnabled: false, emergencyOverride: true } as any;
+        }
+        return null;
+      }).filter(Boolean);
     });
 
     await notificationService.dispatch('org-1', 'trip.started', 'HIGH', { tripId: 'trip-1' }, ['user-1', 'user-2']);
@@ -54,7 +56,8 @@ describe('NotificationService', () => {
   });
 
   it('should suppress notifications during quiet hours except for emergencies', async () => {
-    mockPrefRepo.getByUserId.mockResolvedValue({
+    mockPrefRepo.getManyByUserIds.mockResolvedValue([{
+      userId: 'user-1',
       emailEnabled: true,
       inAppEnabled: true,
       smsEnabled: true,
@@ -62,7 +65,7 @@ describe('NotificationService', () => {
       emergencyOverride: true,
       quietHoursStart: '00:00',
       quietHoursEnd: '23:59' // always quiet
-    } as any);
+    } as any]);
 
     // NORMAL priority -> Suppressed
     await notificationService.dispatch('org-1', 'trip.started', 'NORMAL', {}, ['user-1']);

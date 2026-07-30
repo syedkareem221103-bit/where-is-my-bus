@@ -32,6 +32,43 @@ export class NotificationPreferenceService {
     return pref;
   }
 
+  async getManyPreferences(organizationId: string, userIds: string[]): Promise<Map<string, UserNotificationPreference | null>> {
+    const result = new Map<string, UserNotificationPreference | null>();
+    const missingIds: string[] = [];
+    const now = Date.now();
+
+    // 1. Check cache first
+    for (const id of userIds) {
+      const cacheKey = `${organizationId}:${id}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        result.set(id, cached.data);
+      } else {
+        missingIds.push(id);
+      }
+    }
+
+    // 2. Bulk fetch missing from DB
+    if (missingIds.length > 0) {
+      const fetched = await this.repo.getManyByUserIds(organizationId, missingIds);
+      const fetchedMap = new Map(fetched.map(p => [p.userId, p]));
+
+      for (const id of missingIds) {
+        const pref = fetchedMap.get(id) || null;
+        result.set(id, pref);
+        
+        if (pref) {
+          this.cache.set(`${organizationId}:${id}`, {
+            data: pref,
+            expiresAt: now + this.CACHE_TTL_MS
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
   async updatePreferences(organizationId: string, userId: string, data: Partial<UserNotificationPreference>): Promise<UserNotificationPreference> {
     const updated = await this.repo.upsert(organizationId, userId, data);
     

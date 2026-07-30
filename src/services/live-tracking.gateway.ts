@@ -11,6 +11,7 @@ export class LiveTrackingGateway {
   private static instance: LiveTrackingGateway;
   private io: Server | null = null;
   private trackingService: LiveTrackingService;
+  private locationDebounceMap: Map<string, number> = new Map();
 
   private constructor() {
     this.trackingService = LiveTrackingService.getInstance();
@@ -142,6 +143,28 @@ export class LiveTrackingGateway {
       logger.error('Cannot broadcast: LiveTrackingGateway is not initialized');
       return;
     }
+
+    // Debounce ONLY trip.location.updated
+    if (payload && payload.type === 'trip.location.updated' && room.startsWith('trip:')) {
+      const now = Date.now();
+      const lastBroadcast = this.locationDebounceMap.get(room) || 0;
+      
+      // Throttle to 1 event per second per trip
+      if (now - lastBroadcast < 1000) {
+        return; // Drop this broadcast to save bandwidth/CPU
+      }
+      this.locationDebounceMap.set(room, now);
+      
+      // Clean up old entries periodically to prevent memory leak
+      if (this.locationDebounceMap.size > 1000) {
+        for (const [key, timestamp] of this.locationDebounceMap.entries()) {
+          if (now - timestamp > 60000) {
+            this.locationDebounceMap.delete(key);
+          }
+        }
+      }
+    }
+
     this.io.to(room).emit('event', payload);
   }
 

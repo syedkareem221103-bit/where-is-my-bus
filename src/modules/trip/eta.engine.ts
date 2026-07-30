@@ -1,4 +1,5 @@
 import { TripPing, Stop } from '@prisma/client';
+import { LRUCache } from 'lru-cache';
 import env from '../../config/env';
 
 export interface EtaResult {
@@ -16,6 +17,13 @@ export interface EtaResult {
 }
 
 export class EtaEngine {
+  // Cache to store pre-calculated distances between consecutive stops
+  // Key: stop1.id + '-' + stop2.id
+  private static geometryCache = new LRUCache<string, number>({
+    max: 5000, // Max 5000 segments (plenty for numerous routes)
+    ttl: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
   /**
    * Calculates the Estimated Time of Arrival (ETA) for remaining stops.
    * 
@@ -84,7 +92,15 @@ export class EtaEngine {
       
       if (i > 0) {
         const prevStop = remainingStops[i - 1];
-        cumulativeDistance += this.getDistanceInKm(prevStop.latitude, prevStop.longitude, stop.latitude, stop.longitude);
+        const cacheKey = `${prevStop.id}-${stop.id}`;
+        
+        let segmentDistance = EtaEngine.geometryCache.get(cacheKey);
+        if (segmentDistance === undefined) {
+          segmentDistance = this.getDistanceInKm(prevStop.latitude, prevStop.longitude, stop.latitude, stop.longitude);
+          EtaEngine.geometryCache.set(cacheKey, segmentDistance);
+        }
+        
+        cumulativeDistance += segmentDistance;
       }
 
       const etaHours = cumulativeDistance / speedKmh;

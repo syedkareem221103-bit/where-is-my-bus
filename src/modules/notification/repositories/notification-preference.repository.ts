@@ -13,6 +13,15 @@ export class NotificationPreferenceRepository {
     });
   }
 
+  async getManyByUserIds(organizationId: string, userIds: string[]): Promise<UserNotificationPreference[]> {
+    return prisma.userNotificationPreference.findMany({
+      where: {
+        organizationId,
+        userId: { in: userIds }
+      }
+    });
+  }
+
   async upsert(organizationId: string, userId: string, data: Partial<UserNotificationPreference>): Promise<UserNotificationPreference> {
     return prisma.userNotificationPreference.upsert({
       where: {

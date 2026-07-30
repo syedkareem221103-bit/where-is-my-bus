@@ -1,8 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 import logger from '../utils/logger';
+import env from './env';
+
+// Inject configurable connection limit to the connection URL
+const dbUrl = new URL(env.DATABASE_URL);
+dbUrl.searchParams.set('connection_limit', env.DB_CONNECTION_LIMIT.toString());
 
 // Instantiates a globally shared Prisma client with logging enabled for developer mode
 export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: dbUrl.toString(),
+    },
+  },
   log: [
     { emit: 'event', level: 'query' },
     { emit: 'event', level: 'info' },

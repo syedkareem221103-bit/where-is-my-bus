@@ -103,7 +103,9 @@ export class TripController {
       res.status(200).json({
         status: 'success',
         message: discarded ? 'Telemetry discarded (stale/duplicate)' : 'Telemetry recorded successfully',
-        data: { ping },
+        data: { 
+          ping: ping ? { id: ping.id, timestamp: ping.timestamp } : null 
+        },
       });
     } catch (error) {
       next(error);

@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import logger from './utils/logger';
@@ -44,7 +45,21 @@ app.use(express.json());
 const httpLogStream = {
   write: (message: string) => logger.http(message.trim()),
 };
-app.use(morgan(':remote-addr - :method :url :status :res[content-length] - :response-time ms', { stream: httpLogStream }));
+// Skip logging for health endpoints to avoid log pollution
+app.use(morgan(':remote-addr - :method :url :status :res[content-length] - :response-time ms', { 
+  stream: httpLogStream,
+  skip: (req) => req.url === '/health' || req.url === '/ready'
+}));
+
+// Performance: Compress HTTP responses
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    // Skip compression for health checks or small payloads (handled by default threshold)
+    if (req.url === '/health' || req.url === '/ready') return false;
+    return compression.filter(req, res);
+  }
+}));
 
 // 3. Apply DDoS protection rate limits to API routes
 app.use('/api/', rateLimiter);

@@ -42,9 +42,11 @@ export class NotificationService {
     const recipientsData: any[] = [];
     const jobsToQueue: any[] = [];
 
-    // 2. Evaluate preferences for each recipient and each channel
+    // 2. Evaluate preferences for each recipient and each channel in bulk
+    const preferencesMap = await this.prefService.getManyPreferences(organizationId, recipientIds);
+    
     for (const userId of recipientIds) {
-      const pref = await this.prefService.getPreferences(organizationId, userId);
+      const pref = preferencesMap.get(userId) || null;
 
       for (const channel of channels) {
         const shouldSend = this.prefService.shouldSend(pref, channel, isEmergency);
