@@ -30,6 +30,7 @@ model Organization {
   parentChildren    ParentChild[]
   driverLicenses    DriverLicense[]
   studentStops      StudentStop[]
+  emergencies       Emergency[]
 
   @@index([organizationId])
 }
@@ -73,6 +74,8 @@ model User {
   privacyExports      PrivacyExport[]
   auditLogs           AuditLog[]
   notifications       NotificationRecipient[]
+  reportedEmergencies Emergency[]              @relation("EmergencyReporter")
+  emergencyHistories  EmergencyHistory[]
 
   @@unique([id, organizationId])
   @@index([organizationId, email])
@@ -277,6 +280,7 @@ model Trip {
   pings          TripPing[]
   notifications  Notification[]
   incidents      Incident[]
+  emergencies    Emergency[]
 
   @@unique([id, organizationId])
   @@index([status, driverId])
@@ -310,6 +314,7 @@ model TripPing {
   timestamp         DateTime @default(now())
   receivedTimestamp DateTime @default(now())
   trip              Trip     @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  emergencies       Emergency[]
 
   @@index([tripId, timestamp])
 }
@@ -483,4 +488,74 @@ model DataPurgeLog {
   organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
 
   @@index([organizationId, timestamp])
+}
+
+model Emergency {
+  id              String             @id @default(uuid())
+  organizationId  String
+  tripId          String
+  reporterId      String
+  tripPingId      String?
+  status          EmergencyStatus    @default(ACTIVE)
+  category        EmergencyCategory
+  description     String?
+  priority        String             @default("HIGH")
+  severity        EmergencySeverity  @default(HIGH)
+  correlationId   String             @unique
+  version         Int                @default(1)
+  deletedAt       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  trip            Trip               @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization    Organization       @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  reporter        User               @relation("EmergencyReporter", fields: [reporterId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  tripPing        TripPing?          @relation(fields: [tripPingId], references: [id], onDelete: SetNull)
+  
+  history         EmergencyHistory[]
+  
+  @@unique([tripId, status], name: "activeEmergencyPerTrip")
+  @@index([organizationId, status])
+}
+
+model EmergencyHistory {
+  id              String             @id @default(uuid())
+  organizationId  String
+  emergencyId     String
+  actorId         String
+  previousState   EmergencyStatus?
+  newState        EmergencyStatus?
+  eventType       String
+  metadata        Json?
+  timestamp       DateTime           @default(now())
+
+  emergency       Emergency          @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+  actor           User               @relation(fields: [actorId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  
+  @@index([emergencyId, timestamp])
+}
+
+enum EmergencyStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESPONDING
+  RESOLVED
+  CANCELLED
+}
+
+enum EmergencyCategory {
+  SOS
+  MEDICAL
+  FIRE
+  ACCIDENT
+  BREAKDOWN
+  SECURITY
+  OTHER
+}
+
+enum EmergencySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
