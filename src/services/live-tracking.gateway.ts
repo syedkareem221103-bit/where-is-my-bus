@@ -144,6 +144,15 @@ export class LiveTrackingGateway {
     }
     this.io.to(room).emit('event', payload);
   }
+
+  public close(callback?: (err?: Error) => void): void {
+    if (this.io) {
+      this.io.close(callback);
+      logger.info('LiveTrackingGateway closed.');
+    } else if (callback) {
+      callback();
+    }
+  }
 }
 
 export default LiveTrackingGateway;

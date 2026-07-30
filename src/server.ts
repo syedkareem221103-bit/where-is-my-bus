@@ -4,6 +4,7 @@ import env from './config/env';
 import prisma from './config/database';
 import logger from './utils/logger';
 import LiveTrackingGateway from './services/live-tracking.gateway';
+import { eventBus } from './utils/event-bus';
 
 const server = createServer(app);
 
@@ -32,18 +33,41 @@ async function bootstrap() {
 const handleShutdown = async (signal: string) => {
   logger.warn(`Received ${signal}. Starting graceful shutdown...`);
 
-  // Close Server Port listener
-  server.close(() => {
-    logger.info('HTTP server closed.');
-  });
+  // Fallback timeout to force exit if graceful shutdown hangs
+  setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit.');
+    process.exit(1);
+  }, 10000).unref();
 
   try {
-    // Disconnect Prisma Client
+    // 1. Stop accepting new HTTP connections
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) return reject(err);
+        logger.info('HTTP server closed.');
+        resolve();
+      });
+    });
+
+    // 2. Disconnect WebSockets safely
+    await new Promise<void>((resolve, reject) => {
+      socketGateway.close((err?: Error) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+
+    // 3. Clear EventBus listeners to prevent memory leaks in background processing
+    eventBus.removeAllListeners();
+    logger.info('EventBus listeners cleared.');
+
+    // 4. Disconnect Prisma Client
     await prisma.$disconnect();
     logger.info('Database connection closed.');
+
     process.exit(0);
   } catch (error) {
-    logger.error('Error during database disconnection:', error);
+    logger.error('Error during graceful shutdown:', error);
     process.exit(1);
   }
 };

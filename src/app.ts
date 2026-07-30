@@ -6,6 +6,7 @@ import logger from './utils/logger';
 import { errorHandler } from './errors/error-handler';
 import { initializeKeys } from './utils/crypto';
 import rateLimiter from './middlewares/rate-limiter';
+import prisma from './config/database';
 
 // Import Modular Routers
 import authRouter from './modules/auth/auth.routes';
@@ -25,7 +26,17 @@ const app: Express = express();
 initializeKeys();
 
 // 1. Basic Security & Setup Middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({ origin: '*' })); // Custom restrict for production in real deployments
 app.use(express.json());
 
@@ -38,9 +49,31 @@ app.use(morgan(':remote-addr - :method :url :status :res[content-length] - :resp
 // 3. Apply DDoS protection rate limits to API routes
 app.use('/api/', rateLimiter);
 
-// 4. API Health Check Endpoint
+// 4. API Health & Readiness Endpoints
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'healthy', timestamp: new Date() });
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+app.get('/ready', async (_req, res, next) => {
+  try {
+    // Lightweight database connectivity check
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ 
+      status: 'ready',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error(`Readiness check failed: ${(error as Error).message}`);
+    res.status(503).json({ 
+      status: 'unavailable',
+      timestamp: new Date().toISOString(),
+      error: 'Database connection failed'
+    });
+  }
 });
 
 // 5. Mount Modular Routing Tables (v1)
