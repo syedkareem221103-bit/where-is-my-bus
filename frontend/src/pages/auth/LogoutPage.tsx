@@ -1,21 +1,12 @@
 import { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/useAuthStore';
-import { authService } from '@/services/auth/auth.service';
+import { useLogout } from '@/hooks/auth/useAuth';
 
 export function LogoutPage() {
-  const { clearAuth } = useAuthStore();
+  const { mutate: logout } = useLogout();
 
   useEffect(() => {
-    const handleLogout = async () => {
-      // Fire and forget backend logout
-      authService.logout();
-      // Clear local session state immediately
-      clearAuth();
-    };
+    logout();
+  }, [logout]);
 
-    handleLogout();
-  }, [clearAuth]);
-
-  return <Navigate to="/login" replace />;
+  return null;
 }

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect } from "react";
 import { useAuthStore } from '@/store/useAuthStore';
-import { authService } from '@/services/auth/auth.service';
+import { authService } from '@/services/auth.service';
 
 interface AuthContextType {
   isHydrating: boolean;
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const user = await authService.getProfile();
+        const user = await authService.getCurrentUser();
         setUser(user);
       } catch (error) {
         console.error('Session hydration failed:', error);

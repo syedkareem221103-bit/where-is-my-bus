@@ -2,11 +2,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLogin } from '@/hooks/auth/useAuth';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { authService } from '@/services/auth/auth.service';
-import { useAuthStore } from '@/store/useAuthStore';
-import { getDefaultRouteForRole } from '@/router/redirectConfig';
 
 import {
   Card,
@@ -29,38 +26,18 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  
-  const { setTokens, setUser } = useAuthStore();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { mutate: login, isPending } = useLogin();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
-    setApiError(null);
-    try {
-      const response = await authService.login(data.email, data.password);
-      
-      setTokens(response.data.accessToken, response.data.refreshToken);
-      setUser(response.data.user);
-
-      const from = (location.state as { from?: string })?.from || getDefaultRouteForRole(response.data.user.role);
-      navigate(from, { replace: true });
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      if (err.response?.data?.message) {
-        setApiError(err.response.data.message);
-      } else {
-        setApiError('An unexpected error occurred. Please try again.');
-      }
-    }
+  const onSubmit = (data: LoginFormValues) => {
+    login(data);
   };
 
   return (
@@ -76,11 +53,6 @@ export function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {apiError && (
-              <div className="p-3 text-sm font-medium text-destructive-foreground bg-destructive rounded-md">
-                {apiError}
-              </div>
-            )}
             
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -129,8 +101,8 @@ export function LoginPage() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...

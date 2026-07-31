@@ -14,7 +14,11 @@ import {
   CarFront
 } from 'lucide-react';
 
+import { useDashboardStats } from '@/hooks/admin/useAdmin';
+
 export function AdminDashboard() {
+  const { data: stats, isLoading } = useDashboardStats();
+
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -26,36 +30,34 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           title="Total Students"
-          value="-- (Loading)"
+          value={isLoading ? "Loading..." : (stats?.totalStudents?.toString() || "0")}
           icon={GraduationCap}
         />
         <SummaryCard
           title="Total Drivers"
-          value="-- (Loading)"
+          value={isLoading ? "Loading..." : (stats?.totalDrivers?.toString() || "0")}
           icon={Users}
         />
         <SummaryCard
           title="Total Vehicles"
-          value="-- (Loading)"
+          value={isLoading ? "Loading..." : (stats?.totalVehicles?.toString() || "0")}
           icon={Car}
         />
         <SummaryCard
           title="Total Routes"
-          value="-- (Loading)"
+          value={isLoading ? "Loading..." : (stats?.totalRoutes?.toString() || "0")}
           icon={Map}
         />
         <SummaryCard
           title="Active Trips"
-          value="-- (Loading)"
+          value={isLoading ? "Loading..." : (stats?.activeTrips?.toString() || "0")}
           icon={MapPin}
-          trend={{ value: 12, isPositive: true }}
-          description="vs yesterday"
         />
         <SummaryCard
           title="System Alerts"
-          value="0"
+          value={isLoading ? "Loading..." : (stats?.systemAlerts?.toString() || "0")}
           icon={AlertTriangle}
-          className="border-destructive/50"
+          className={stats?.systemAlerts && stats.systemAlerts > 0 ? "border-destructive/50" : ""}
         />
       </div>
 
