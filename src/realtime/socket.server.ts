@@ -10,6 +10,7 @@ import { RoomManager } from './managers/room.manager';
 import { PresenceManager } from './managers/presence.manager';
 import { EventDispatcher } from './services/event-dispatcher.service';
 import { registerLocationHandlers } from './handlers/location.handler';
+import { registerAttendanceHandlers } from './handlers/attendance.handler';
 
 export class SocketServer {
   private static instance: SocketServer;
@@ -95,6 +96,7 @@ export class SocketServer {
 
       // Register specific business handlers
       registerLocationHandlers(socket);
+      registerAttendanceHandlers(socket);
 
       // 4. Handle Disconnect
       socket.on('disconnect', () => {
