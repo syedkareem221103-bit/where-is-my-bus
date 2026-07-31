@@ -28,6 +28,14 @@ import { ReportsDashboard } from '@/pages/admin/ReportsDashboard';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { EmergencyDashboard } from '@/pages/admin/EmergencyDashboard';
 
+import { DriverDashboard } from '@/pages/driver/DriverDashboard';
+import { TodaysRoutePage } from '@/pages/driver/TodaysRoutePage';
+import { TripHistoryPage } from '@/pages/driver/TripHistoryPage';
+import { DriverAttendancePage } from '@/pages/driver/DriverAttendancePage';
+import { EmergencyActionPage } from '@/pages/driver/EmergencyActionPage';
+import { DriverProfilePage } from '@/pages/driver/DriverProfilePage';
+import { DriverSettingsPage } from '@/pages/driver/DriverSettingsPage';
+
 const router = createBrowserRouter([
   // Public / Guest Routes
   {
@@ -143,7 +151,31 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <div>Driver Portal Placeholder</div>,
+                element: <DriverDashboard />,
+              },
+              {
+                path: 'route',
+                element: <TodaysRoutePage />,
+              },
+              {
+                path: 'trips',
+                element: <TripHistoryPage />,
+              },
+              {
+                path: 'attendance',
+                element: <DriverAttendancePage />,
+              },
+              {
+                path: 'emergency',
+                element: <EmergencyActionPage />,
+              },
+              {
+                path: 'profile',
+                element: <DriverProfilePage />,
+              },
+              {
+                path: 'settings',
+                element: <DriverSettingsPage />,
               },
             ],
           },
