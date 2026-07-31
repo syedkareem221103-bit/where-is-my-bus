@@ -1,4 +1,6 @@
+import React, { Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { DriverLayout } from '@/layouts/DriverLayout';
@@ -9,41 +11,54 @@ import { AuthGuard } from './guards/AuthGuard';
 import { GuestGuard } from './guards/GuestGuard';
 import { RoleGuard } from './guards/RoleGuard';
 
-import { LoginPage } from '@/pages/auth/LoginPage';
-import { LogoutPage } from '@/pages/auth/LogoutPage';
-import { UnauthorizedPage } from '@/pages/error/UnauthorizedPage';
-import { ForbiddenPage } from '@/pages/error/ForbiddenPage';
+const LoginPage = React.lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
+const LogoutPage = React.lazy(() => import('@/pages/auth/LogoutPage').then(m => ({ default: m.LogoutPage })));
+const UnauthorizedPage = React.lazy(() => import('@/pages/error/UnauthorizedPage').then(m => ({ default: m.UnauthorizedPage })));
+const ForbiddenPage = React.lazy(() => import('@/pages/error/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
 
-import { AdminDashboard } from '@/pages/admin/AdminDashboard';
-import { OrganizationsList } from '@/pages/admin/OrganizationsList';
-import { UsersList } from '@/pages/admin/UsersList';
-import { DriversList } from '@/pages/admin/DriversList';
-import { StudentsList } from '@/pages/admin/StudentsList';
-import { ParentsList } from '@/pages/admin/ParentsList';
-import { VehiclesList } from '@/pages/admin/VehiclesList';
-import { RoutesList } from '@/pages/admin/RoutesList';
-import { TripsList } from '@/pages/admin/TripsList';
-import { AttendanceList } from '@/pages/admin/AttendanceList';
-import { ReportsDashboard } from '@/pages/admin/ReportsDashboard';
-import { SettingsPage } from '@/pages/admin/SettingsPage';
-import { EmergencyDashboard } from '@/pages/admin/EmergencyDashboard';
+const AdminDashboard = React.lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const OrganizationsList = React.lazy(() => import('@/pages/admin/OrganizationsList').then(m => ({ default: m.OrganizationsList })));
+const UsersList = React.lazy(() => import('@/pages/admin/UsersList').then(m => ({ default: m.UsersList })));
+const DriversList = React.lazy(() => import('@/pages/admin/DriversList').then(m => ({ default: m.DriversList })));
+const StudentsList = React.lazy(() => import('@/pages/admin/StudentsList').then(m => ({ default: m.StudentsList })));
+const ParentsList = React.lazy(() => import('@/pages/admin/ParentsList').then(m => ({ default: m.ParentsList })));
+const VehiclesList = React.lazy(() => import('@/pages/admin/VehiclesList').then(m => ({ default: m.VehiclesList })));
+const RoutesList = React.lazy(() => import('@/pages/admin/RoutesList').then(m => ({ default: m.RoutesList })));
+const TripsList = React.lazy(() => import('@/pages/admin/TripsList').then(m => ({ default: m.TripsList })));
+const AttendanceList = React.lazy(() => import('@/pages/admin/AttendanceList').then(m => ({ default: m.AttendanceList })));
+const ReportsDashboard = React.lazy(() => import('@/pages/admin/ReportsDashboard').then(m => ({ default: m.ReportsDashboard })));
+const SettingsPage = React.lazy(() => import('@/pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const EmergencyDashboard = React.lazy(() => import('@/pages/admin/EmergencyDashboard').then(m => ({ default: m.EmergencyDashboard })));
 
-import { DriverDashboard } from '@/pages/driver/DriverDashboard';
-import { TodaysRoutePage } from '@/pages/driver/TodaysRoutePage';
-import { TripHistoryPage } from '@/pages/driver/TripHistoryPage';
-import { DriverAttendancePage } from '@/pages/driver/DriverAttendancePage';
-import { EmergencyActionPage } from '@/pages/driver/EmergencyActionPage';
-import { DriverProfilePage } from '@/pages/driver/DriverProfilePage';
-import { DriverSettingsPage } from '@/pages/driver/DriverSettingsPage';
+const DriverDashboard = React.lazy(() => import('@/pages/driver/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
+const TodaysRoutePage = React.lazy(() => import('@/pages/driver/TodaysRoutePage').then(m => ({ default: m.TodaysRoutePage })));
+const TripHistoryPage = React.lazy(() => import('@/pages/driver/TripHistoryPage').then(m => ({ default: m.TripHistoryPage })));
+const DriverAttendancePage = React.lazy(() => import('@/pages/driver/DriverAttendancePage').then(m => ({ default: m.DriverAttendancePage })));
+const EmergencyActionPage = React.lazy(() => import('@/pages/driver/EmergencyActionPage').then(m => ({ default: m.EmergencyActionPage })));
+const DriverProfilePage = React.lazy(() => import('@/pages/driver/DriverProfilePage').then(m => ({ default: m.DriverProfilePage })));
+const DriverSettingsPage = React.lazy(() => import('@/pages/driver/DriverSettingsPage').then(m => ({ default: m.DriverSettingsPage })));
 
-import { ParentDashboard } from '@/pages/parent/ParentDashboard';
-import { TodaysTripPage } from '@/pages/parent/TodaysTripPage';
-import { ChildInfoPage } from '@/pages/parent/ChildInfoPage';
-import { ParentAttendancePage } from '@/pages/parent/ParentAttendancePage';
-import { NotificationsPage } from '@/pages/parent/NotificationsPage';
-import { ParentEmergencyPage } from '@/pages/parent/ParentEmergencyPage';
-import { ParentProfilePage } from '@/pages/parent/ParentProfilePage';
-import { ParentSettingsPage } from '@/pages/parent/ParentSettingsPage';
+const ParentDashboard = React.lazy(() => import('@/pages/parent/ParentDashboard').then(m => ({ default: m.ParentDashboard })));
+const TodaysTripPage = React.lazy(() => import('@/pages/parent/TodaysTripPage').then(m => ({ default: m.TodaysTripPage })));
+const ChildInfoPage = React.lazy(() => import('@/pages/parent/ChildInfoPage').then(m => ({ default: m.ChildInfoPage })));
+const ParentAttendancePage = React.lazy(() => import('@/pages/parent/ParentAttendancePage').then(m => ({ default: m.ParentAttendancePage })));
+const NotificationsPage = React.lazy(() => import('@/pages/parent/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const ParentEmergencyPage = React.lazy(() => import('@/pages/parent/ParentEmergencyPage').then(m => ({ default: m.ParentEmergencyPage })));
+const ParentProfilePage = React.lazy(() => import('@/pages/parent/ParentProfilePage').then(m => ({ default: m.ParentProfilePage })));
+const ParentSettingsPage = React.lazy(() => import('@/pages/parent/ParentSettingsPage').then(m => ({ default: m.ParentSettingsPage })));
+
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
+
+const withSuspense = (Component: React.ComponentType) => React.createElement(
+  Suspense, 
+  { fallback: React.createElement(PageLoader) },
+  React.createElement(Component)
+);
 
 const router = createBrowserRouter([
   // Public / Guest Routes
@@ -61,7 +76,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'login',
-            element: <LoginPage />,
+            element: withSuspense(LoginPage),
           },
         ],
       },
@@ -71,7 +86,7 @@ const router = createBrowserRouter([
   // Auth Action Routes
   {
     path: 'logout',
-    element: <LogoutPage />,
+    element: withSuspense(LogoutPage),
   },
 
   // Protected Routes
@@ -89,7 +104,7 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <AdminDashboard />,
+                element: withSuspense(AdminDashboard),
               },
               {
                 path: 'organizations',
@@ -97,53 +112,53 @@ const router = createBrowserRouter([
                 children: [
                   {
                     index: true,
-                    element: <OrganizationsList />,
+                    element: withSuspense(OrganizationsList),
                   }
                 ]
               },
               {
                 path: 'users',
-                element: <UsersList />,
+                element: withSuspense(UsersList),
               },
               {
                 path: 'drivers',
-                element: <DriversList />,
+                element: withSuspense(DriversList),
               },
               {
                 path: 'students',
-                element: <StudentsList />,
+                element: withSuspense(StudentsList),
               },
               {
                 path: 'parents',
-                element: <ParentsList />,
+                element: withSuspense(ParentsList),
               },
               {
                 path: 'vehicles',
-                element: <VehiclesList />,
+                element: withSuspense(VehiclesList),
               },
               {
                 path: 'routes',
-                element: <RoutesList />,
+                element: withSuspense(RoutesList),
               },
               {
                 path: 'trips',
-                element: <TripsList />,
+                element: withSuspense(TripsList),
               },
               {
                 path: 'attendance',
-                element: <AttendanceList />,
+                element: withSuspense(AttendanceList),
               },
               {
                 path: 'reports',
-                element: <ReportsDashboard />,
+                element: withSuspense(ReportsDashboard),
               },
               {
                 path: 'settings',
-                element: <SettingsPage />,
+                element: withSuspense(SettingsPage),
               },
               {
                 path: 'emergency',
-                element: <EmergencyDashboard />,
+                element: withSuspense(EmergencyDashboard),
               },
             ],
           },
@@ -160,31 +175,31 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <DriverDashboard />,
+                element: withSuspense(DriverDashboard),
               },
               {
                 path: 'route',
-                element: <TodaysRoutePage />,
+                element: withSuspense(TodaysRoutePage),
               },
               {
                 path: 'trips',
-                element: <TripHistoryPage />,
+                element: withSuspense(TripHistoryPage),
               },
               {
                 path: 'attendance',
-                element: <DriverAttendancePage />,
+                element: withSuspense(DriverAttendancePage),
               },
               {
                 path: 'emergency',
-                element: <EmergencyActionPage />,
+                element: withSuspense(EmergencyActionPage),
               },
               {
                 path: 'profile',
-                element: <DriverProfilePage />,
+                element: withSuspense(DriverProfilePage),
               },
               {
                 path: 'settings',
-                element: <DriverSettingsPage />,
+                element: withSuspense(DriverSettingsPage),
               },
             ],
           },
@@ -201,35 +216,35 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <ParentDashboard />,
+                element: withSuspense(ParentDashboard),
               },
               {
                 path: 'trip',
-                element: <TodaysTripPage />,
+                element: withSuspense(TodaysTripPage),
               },
               {
                 path: 'child',
-                element: <ChildInfoPage />,
+                element: withSuspense(ChildInfoPage),
               },
               {
                 path: 'attendance',
-                element: <ParentAttendancePage />,
+                element: withSuspense(ParentAttendancePage),
               },
               {
                 path: 'notifications',
-                element: <NotificationsPage />,
+                element: withSuspense(NotificationsPage),
               },
               {
                 path: 'emergency',
-                element: <ParentEmergencyPage />,
+                element: withSuspense(ParentEmergencyPage),
               },
               {
                 path: 'profile',
-                element: <ParentProfilePage />,
+                element: withSuspense(ParentProfilePage),
               },
               {
                 path: 'settings',
-                element: <ParentSettingsPage />,
+                element: withSuspense(ParentSettingsPage),
               },
             ],
           },
@@ -245,7 +260,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <UnauthorizedPage />,
+        element: withSuspense(UnauthorizedPage),
       }
     ],
   },
@@ -255,7 +270,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <ForbiddenPage />,
+        element: withSuspense(ForbiddenPage),
       }
     ],
   },
@@ -272,5 +287,9 @@ const router = createBrowserRouter([
 ]);
 
 export function AppRouter() {
-  return <RouterProvider router={router} />;
+  return (
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  );
 }
