@@ -74,9 +74,12 @@ class SocketClient {
       this.socket.emit(event, ...args);
     } else {
       if (DEBUG) console.log(`[Socket Queued] ${event}`, ...args);
-      // Optional: Logic to override idempotency events (e.g. replace old GPS ping with new)
-      // For now, simple FIFO queue
+      // Queue events when offline. 
+      // Policy: Bounded queue (max 100). Drop oldest, keep newest.
       this.offlineQueue.push({ event, args });
+      if (this.offlineQueue.length > 100) {
+        this.offlineQueue.shift(); // Drop oldest
+      }
     }
   }
 
