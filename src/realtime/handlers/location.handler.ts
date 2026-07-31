@@ -8,6 +8,7 @@ import {
   LocationStopSchema
 } from '../types/location.types';
 import { EventDispatcher } from '../services/event-dispatcher.service';
+import { ETAEngineService } from '../services/eta-engine.service';
 
 type Socket = IOSocket<any, any, any, SocketData>;
 
@@ -78,6 +79,16 @@ export function registerLocationHandlers(socket: Socket) {
         tripId
       );
 
+      // Process ETA
+      ETAEngineService.getInstance().processLocationUpdate(user.organizationId, tripId, {
+        latitude: parsed.latitude,
+        longitude: parsed.longitude,
+        speed: parsed.speed,
+        heading: parsed.heading,
+        accuracy: parsed.accuracy,
+        timestamp: parsed.timestamp
+      });
+
       // (Future: Persistence Strategy)
       // Send raw payload to a batch processor/queue to save to PostgreSQL
 
@@ -114,6 +125,8 @@ export function registerLocationHandlers(socket: Socket) {
         socket.leave(`trip_room:${parsed.tripId}`);
         socket.data.activeTripId = undefined;
       }
+
+      ETAEngineService.getInstance().clearTrip(parsed.tripId);
 
       logger.info(`Driver ${user.id} ended trip ${parsed.tripId}`);
       if (callback) callback({ status: 'success' });

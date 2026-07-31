@@ -38,7 +38,7 @@ describe('NotificationHandler', () => {
     const payload = {
       notificationId: crypto.randomUUID(),
       tripId: crypto.randomUUID(),
-      category: 'ATTENDANCE',
+      category: 'ATTENDANCE' as any,
       priority: 'HIGH' as const,
       title: 'Test',
       body: 'Test Body',
@@ -57,7 +57,7 @@ describe('NotificationHandler', () => {
     const payload = {
       notificationId: 'duplicate-id',
       tripId: crypto.randomUUID(),
-      category: 'ETA',
+      category: 'ETA' as any,
       priority: 'NORMAL' as const,
       title: 'Test',
       body: 'Test Body',
@@ -78,7 +78,7 @@ describe('NotificationHandler', () => {
       handler.enqueue('parent1', {
         notificationId: `id-${i}`,
         tripId: 'test',
-        category: 'SYSTEM',
+        category: 'SYSTEM' as any,
         priority: 'LOW',
         title: 'Test',
         body: 'Test',
@@ -100,7 +100,7 @@ describe('NotificationHandler', () => {
   it('should drop expired items during flush', () => {
     const payload1 = {
       notificationId: crypto.randomUUID(),
-      category: 'ATTENDANCE',
+      category: 'ATTENDANCE' as any,
       priority: 'HIGH' as const,
       title: 'Valid',
       body: 'Body',
@@ -110,7 +110,7 @@ describe('NotificationHandler', () => {
 
     const payload2 = {
       notificationId: crypto.randomUUID(),
-      category: 'ATTENDANCE',
+      category: 'ATTENDANCE' as any,
       priority: 'HIGH' as const,
       title: 'Expired',
       body: 'Body',
@@ -131,7 +131,7 @@ describe('NotificationHandler', () => {
     const notificationId = crypto.randomUUID();
     const payload = {
       notificationId,
-      category: 'ETA',
+      category: 'ETA' as any,
       priority: 'NORMAL' as const,
       title: 'Test',
       body: 'Test',
