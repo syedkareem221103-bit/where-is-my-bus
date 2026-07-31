@@ -1,50 +1,47 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { io, Socket } from 'socket.io-client';
-import { env } from '@/config/env';
-import { useAuthStore } from '@/store/useAuthStore';
+import React, { createContext, useEffect } from 'react';
+import { useAuthStore } from '../store/useAuthStore';
+import { useSocketStore } from '../store/useSocketStore';
+import { socketClient } from '../services/realtime/socketClient';
 
-interface SocketContextType {
-  socket: Socket | null;
-  isConnected: boolean;
+interface SocketContextValue {
+  connected: boolean;
 }
 
-const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  isConnected: false,
-});
+export const SocketContext = createContext<SocketContextValue>({ connected: false });
 
-export const useSocket = () => useContext(SocketContext);
-
-export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const { isAuthenticated } = useAuthStore();
+export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isHydrating } = useAuthStore();
+  const status = useSocketStore((state) => state.status);
 
   useEffect(() => {
-    // Only connect if authenticated, according to backend rules
-    if (!isAuthenticated) return;
+    if (isHydrating) return;
 
-    const token = localStorage.getItem('accessToken');
-    const socketInstance = io(env.VITE_SOCKET_URL, {
-      auth: { token },
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    if (isAuthenticated) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        socketClient.connect(token);
+      }
+    } else {
+      socketClient.disconnect();
+    }
+  }, [isAuthenticated, isHydrating]);
 
-    socketInstance.on('connect', () => setIsConnected(true));
-    socketInstance.on('disconnect', () => setIsConnected(false));
+  useEffect(() => {
+    if (status === 'AUTH_FAILED') {
+      console.warn('Socket authentication failed. Token may be expired.');
+      // Future: Integrate with apiClient token refresh logic
+    }
+  }, [status]);
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSocket(socketInstance);
-
+  useEffect(() => {
     return () => {
-      socketInstance.disconnect();
+      socketClient.disconnect();
     };
-  }, [isAuthenticated]);
+  }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ connected: status === 'CONNECTED' }}>
       {children}
     </SocketContext.Provider>
   );
-}
+};
