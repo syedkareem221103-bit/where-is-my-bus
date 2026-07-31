@@ -9,6 +9,7 @@ import { socketAuthMiddleware } from './middlewares/socket.auth';
 import { RoomManager } from './managers/room.manager';
 import { PresenceManager } from './managers/presence.manager';
 import { EventDispatcher } from './services/event-dispatcher.service';
+import { registerLocationHandlers } from './handlers/location.handler';
 
 export class SocketServer {
   private static instance: SocketServer;
@@ -91,6 +92,9 @@ export class SocketServer {
           if (callback) callback({ status: 'success' });
         }
       });
+
+      // Register specific business handlers
+      registerLocationHandlers(socket);
 
       // 4. Handle Disconnect
       socket.on('disconnect', () => {
