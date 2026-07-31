@@ -36,6 +36,15 @@ import { EmergencyActionPage } from '@/pages/driver/EmergencyActionPage';
 import { DriverProfilePage } from '@/pages/driver/DriverProfilePage';
 import { DriverSettingsPage } from '@/pages/driver/DriverSettingsPage';
 
+import { ParentDashboard } from '@/pages/parent/ParentDashboard';
+import { TodaysTripPage } from '@/pages/parent/TodaysTripPage';
+import { ChildInfoPage } from '@/pages/parent/ChildInfoPage';
+import { ParentAttendancePage } from '@/pages/parent/ParentAttendancePage';
+import { NotificationsPage } from '@/pages/parent/NotificationsPage';
+import { ParentEmergencyPage } from '@/pages/parent/ParentEmergencyPage';
+import { ParentProfilePage } from '@/pages/parent/ParentProfilePage';
+import { ParentSettingsPage } from '@/pages/parent/ParentSettingsPage';
+
 const router = createBrowserRouter([
   // Public / Guest Routes
   {
@@ -192,7 +201,35 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <div>Parent Portal Placeholder</div>,
+                element: <ParentDashboard />,
+              },
+              {
+                path: 'trip',
+                element: <TodaysTripPage />,
+              },
+              {
+                path: 'child',
+                element: <ChildInfoPage />,
+              },
+              {
+                path: 'attendance',
+                element: <ParentAttendancePage />,
+              },
+              {
+                path: 'notifications',
+                element: <NotificationsPage />,
+              },
+              {
+                path: 'emergency',
+                element: <ParentEmergencyPage />,
+              },
+              {
+                path: 'profile',
+                element: <ParentProfilePage />,
+              },
+              {
+                path: 'settings',
+                element: <ParentSettingsPage />,
               },
             ],
           },
