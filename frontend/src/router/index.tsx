@@ -14,6 +14,20 @@ import { LogoutPage } from '@/pages/auth/LogoutPage';
 import { UnauthorizedPage } from '@/pages/error/UnauthorizedPage';
 import { ForbiddenPage } from '@/pages/error/ForbiddenPage';
 
+import { AdminDashboard } from '@/pages/admin/AdminDashboard';
+import { OrganizationsList } from '@/pages/admin/OrganizationsList';
+import { UsersList } from '@/pages/admin/UsersList';
+import { DriversList } from '@/pages/admin/DriversList';
+import { StudentsList } from '@/pages/admin/StudentsList';
+import { ParentsList } from '@/pages/admin/ParentsList';
+import { VehiclesList } from '@/pages/admin/VehiclesList';
+import { RoutesList } from '@/pages/admin/RoutesList';
+import { TripsList } from '@/pages/admin/TripsList';
+import { AttendanceList } from '@/pages/admin/AttendanceList';
+import { ReportsDashboard } from '@/pages/admin/ReportsDashboard';
+import { SettingsPage } from '@/pages/admin/SettingsPage';
+import { EmergencyDashboard } from '@/pages/admin/EmergencyDashboard';
+
 const router = createBrowserRouter([
   // Public / Guest Routes
   {
@@ -58,7 +72,61 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <div>Admin Dashboard Placeholder</div>,
+                element: <AdminDashboard />,
+              },
+              {
+                path: 'organizations',
+                element: <RoleGuard allowedRoles={['SUPER_ADMIN']} />,
+                children: [
+                  {
+                    index: true,
+                    element: <OrganizationsList />,
+                  }
+                ]
+              },
+              {
+                path: 'users',
+                element: <UsersList />,
+              },
+              {
+                path: 'drivers',
+                element: <DriversList />,
+              },
+              {
+                path: 'students',
+                element: <StudentsList />,
+              },
+              {
+                path: 'parents',
+                element: <ParentsList />,
+              },
+              {
+                path: 'vehicles',
+                element: <VehiclesList />,
+              },
+              {
+                path: 'routes',
+                element: <RoutesList />,
+              },
+              {
+                path: 'trips',
+                element: <TripsList />,
+              },
+              {
+                path: 'attendance',
+                element: <AttendanceList />,
+              },
+              {
+                path: 'reports',
+                element: <ReportsDashboard />,
+              },
+              {
+                path: 'settings',
+                element: <SettingsPage />,
+              },
+              {
+                path: 'emergency',
+                element: <EmergencyDashboard />,
               },
             ],
           },

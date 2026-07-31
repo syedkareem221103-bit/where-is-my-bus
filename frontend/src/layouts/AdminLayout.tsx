@@ -1,19 +1,17 @@
 import { Outlet } from 'react-router-dom';
+import { AdminSidebar } from '@/components/layout/AdminSidebar';
+import { AdminTopbar } from '@/components/layout/AdminTopbar';
 
 export function AdminLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="w-64 border-r hidden md:block">
-        {/* Sidebar placeholder */}
-      </aside>
-      <main className="flex-1 overflow-y-auto">
-        <header className="h-16 border-b flex items-center px-4">
-          {/* Header placeholder */}
-        </header>
-        <div className="p-6">
+    <div className="min-h-screen bg-muted/30 flex">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <AdminTopbar />
+        <main className="flex-1 p-6 overflow-y-auto">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
