@@ -3,14 +3,14 @@ import app from './app';
 import env from './config/env';
 import prisma from './config/database';
 import logger from './utils/logger';
-import LiveTrackingGateway from './services/live-tracking.gateway';
+import SocketServer from './realtime/socket.server';
 import { eventBus } from './utils/event-bus';
 
 const server = createServer(app);
 
-// Initialize real-time Socket Gateway
-const socketGateway = LiveTrackingGateway.getInstance();
-socketGateway.init(server);
+// Initialize real-time Socket Server
+const socketServer = SocketServer.getInstance();
+socketServer.init(server);
 
 async function bootstrap() {
   try {
@@ -51,7 +51,7 @@ const handleShutdown = async (signal: string) => {
 
     // 2. Disconnect WebSockets safely
     await new Promise<void>((resolve, reject) => {
-      socketGateway.close((err?: Error) => {
+      socketServer.close((err?: Error) => {
         if (err) return reject(err);
         resolve();
       });

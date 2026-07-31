@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { LiveTrackingGateway } from './live-tracking.gateway';
+import { EventDispatcher } from '../realtime/services/event-dispatcher.service';
 import logger from '../utils/logger';
 
 export interface SocketIdentity {
@@ -79,6 +79,6 @@ export class LiveTrackingService {
     };
 
     logger.debug(`Publishing event ${type} to room ${room}`);
-    LiveTrackingGateway.getInstance().broadcast(room, envelope);
+    EventDispatcher.getInstance().broadcast(room, type, 'legacy', data);
   }
 }
