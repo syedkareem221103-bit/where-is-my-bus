@@ -3,6 +3,8 @@ import { SocketEventEnvelope } from '../types/socket.types';
 import crypto from 'crypto';
 import logger from '../../utils/logger';
 
+import { eventBus } from '../../utils/event-bus';
+
 export class EventDispatcher {
   private static instance: EventDispatcher;
   private io: Server | null = null;
@@ -53,6 +55,9 @@ export class EventDispatcher {
     });
     
     this.io.to(room).emit(eventName, envelope);
+    
+    // Intercept and broadcast internally for aggregators
+    eventBus.emitEvent('socket:broadcast', { room, eventName, organizationId, payload, tripId, correlationId });
   }
 
   // Common helpers for REST controllers

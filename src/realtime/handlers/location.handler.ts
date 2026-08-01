@@ -81,10 +81,10 @@ export function registerLocationHandlers(socket: Socket) {
 
       // Process ETA
       ETAEngineService.getInstance().processLocationUpdate(user.organizationId, tripId, {
-        latitude: parsed.latitude,
-        longitude: parsed.longitude,
-        speed: parsed.speed,
-        heading: parsed.heading,
+        latitude: parsed.lat,
+        longitude: parsed.lng,
+        speed: parsed.speed ?? undefined,
+        heading: parsed.heading ?? undefined,
         accuracy: parsed.accuracy,
         timestamp: parsed.timestamp
       });

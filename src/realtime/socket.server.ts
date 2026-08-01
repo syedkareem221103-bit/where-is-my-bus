@@ -10,10 +10,11 @@ import { RoomManager } from './managers/room.manager';
 import { PresenceManager } from './managers/presence.manager';
 import { EventDispatcher } from './services/event-dispatcher.service';
 import { registerLocationHandlers } from './handlers/location.handler';
-import { registerPresenceHandlers } from './handlers/presence.handler';
 import { registerAttendanceHandlers } from './handlers/attendance.handler';
 import { registerNotificationHandlers } from './handlers/notification.handler';
 import { registerETAHandlers } from './handlers/eta.handler';
+import { FleetService } from '../modules/fleet/fleet.service';
+import crypto from 'crypto';
 
 export class SocketServer {
   private static instance: SocketServer;
@@ -69,7 +70,16 @@ export class SocketServer {
       socket.join(`org_${user.organizationId}`);
       
       if (['ORG_ADMIN', 'OPERATOR', 'SUPER_ADMIN'].includes(user.role)) {
-        this.roomManager.joinAdminRoom(socket);
+        if (this.roomManager.joinAdminRoom(socket)) {
+          const snapshot = FleetService.getInstance().getSnapshot(user.organizationId);
+          socket.emit('fleet:snapshot', {
+            eventId: crypto.randomUUID(),
+            version: '1.0',
+            timestamp: new Date().toISOString(),
+            organizationId: user.organizationId,
+            payload: snapshot
+          });
+        }
       }
 
       // 2. Mark Online
@@ -99,7 +109,6 @@ export class SocketServer {
 
       // Register specific business handlers
       registerLocationHandlers(socket);
-      registerPresenceHandlers(socket);
       registerNotificationHandlers(socket);
       registerETAHandlers(socket);
       registerAttendanceHandlers(socket);

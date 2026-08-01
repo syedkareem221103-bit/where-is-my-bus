@@ -5,12 +5,16 @@ import prisma from './config/database';
 import logger from './utils/logger';
 import SocketServer from './realtime/socket.server';
 import { eventBus } from './utils/event-bus';
+import { FleetAggregator } from './modules/fleet/fleet.aggregator';
 
 const server = createServer(app);
 
 // Initialize real-time Socket Server
 const socketServer = SocketServer.getInstance();
 socketServer.init(server);
+
+// Initialize Fleet Aggregator for Admin Dashboards
+FleetAggregator.getInstance();
 
 async function bootstrap() {
   try {
@@ -59,7 +63,8 @@ const handleShutdown = async (signal: string) => {
 
     // 3. Clear EventBus listeners to prevent memory leaks in background processing
     eventBus.removeAllListeners();
-    logger.info('EventBus listeners cleared.');
+    FleetAggregator.getInstance().shutdown();
+    logger.info('EventBus listeners and aggregators cleared.');
 
     // 4. Disconnect Prisma Client
     await prisma.$disconnect();
