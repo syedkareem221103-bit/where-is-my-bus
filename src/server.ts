@@ -6,6 +6,7 @@ import logger from './utils/logger';
 import SocketServer from './realtime/socket.server';
 import { eventBus } from './utils/event-bus';
 import { FleetAggregator } from './modules/fleet/fleet.aggregator';
+import { reportScheduler } from './modules/report/report.scheduler';
 
 const server = createServer(app);
 
@@ -22,6 +23,9 @@ async function bootstrap() {
     logger.info('Verifying database connectivity...');
     await prisma.$connect();
     logger.info('Database connection established successfully');
+
+    // Start Report Scheduler
+    reportScheduler.start();
 
     // 2. Start HTTP & Socket Server listening
     server.listen(env.PORT, () => {
@@ -64,6 +68,7 @@ const handleShutdown = async (signal: string) => {
     // 3. Clear EventBus listeners to prevent memory leaks in background processing
     eventBus.removeAllListeners();
     FleetAggregator.getInstance().shutdown();
+    reportScheduler.stop();
     logger.info('EventBus listeners and aggregators cleared.');
 
     // 4. Disconnect Prisma Client

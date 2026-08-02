@@ -8,29 +8,31 @@ generator client {
 }
 
 model Organization {
-  id                String          @id @default(uuid())
-  organizationId    String          @unique
-  name              String
-  type              OrgType
-  timezone          String          @default("UTC")
-  attendancePolicy  AttendPolicy    @default(AUTO_ABSENT)
-  routeSettings     Json // Optimized path parameters
-  notifySettings    Json // Carriers setups (SMS, Push)
-  operatingSchedule Json // Peak operating hours boundaries
-  status            OrgStatus       @default(ACTIVE)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  users             User[]
-  vehicles          Vehicle[]
-  routes            Route[]
-  auditLogs         AuditLog[]
-  incidents         Incident[]
-  dataPurgeLogs     DataPurgeLog[]
-  students          Student[]
-  parentChildren    ParentChild[]
-  driverLicenses    DriverLicense[]
-  studentStops      StudentStop[]
-  emergencies       Emergency[]
+  id                  String               @id @default(uuid())
+  organizationId      String               @unique
+  name                String
+  type                OrgType
+  timezone            String               @default("UTC")
+  attendancePolicy    AttendPolicy         @default(AUTO_ABSENT)
+  routeSettings       Json // Optimized path parameters
+  notifySettings      Json // Carriers setups (SMS, Push)
+  operatingSchedule   Json // Peak operating hours boundaries
+  status              OrgStatus            @default(ACTIVE)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  users               User[]
+  vehicles            Vehicle[]
+  routes              Route[]
+  auditLogs           AuditLog[]
+  incidents           Incident[]
+  dataPurgeLogs       DataPurgeLog[]
+  students            Student[]
+  parentChildren      ParentChild[]
+  driverLicenses      DriverLicense[]
+  studentStops        StudentStop[]
+  emergencies         Emergency[]
+  reportSubscriptions ReportSubscription[]
+  reportExecutions    ReportExecution[]
 
   @@index([organizationId])
 }
@@ -54,28 +56,29 @@ enum AttendPolicy {
 }
 
 model User {
-  id                  String                   @id @default(uuid())
+  id                  String                       @id @default(uuid())
   organizationId      String
-  email               String                   @unique
+  email               String                       @unique
   passwordHash        String
   firstName           String
   lastName            String
   role                UserRole
-  status              UserStatus               @default(ACTIVE)
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  organization        Organization             @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  status              UserStatus                   @default(ACTIVE)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  organization        Organization                 @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
   driverLicense       DriverLicense?
   parentChildren      ParentChild[]
   deviceSessions      DeviceSession[]
   trips               Trip[]
   notifyPrefs         UserNotificationPreference[]
-  resolvedIncidents   Incident[]               @relation("IncidentResolver")
+  resolvedIncidents   Incident[]                   @relation("IncidentResolver")
   privacyExports      PrivacyExport[]
   auditLogs           AuditLog[]
   notifications       NotificationRecipient[]
-  reportedEmergencies Emergency[]              @relation("EmergencyReporter")
+  reportedEmergencies Emergency[]                  @relation("EmergencyReporter")
   emergencyHistories  EmergencyHistory[]
+  reportSubscriptions ReportSubscription[]
 
   @@unique([id, organizationId])
   @@index([organizationId, email])
@@ -263,20 +266,20 @@ enum AttendanceStatus {
 }
 
 model Trip {
-  id             String               @id @default(uuid())
+  id             String         @id @default(uuid())
   organizationId String
   scheduleId     String
   routeId        String
   serviceDate    String
   vehicleId      String
   driverId       String
-  status         TripStatus           @default(SCHEDULED)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  schedule       Schedule             @relation(fields: [scheduleId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  route          Route                @relation(fields: [routeId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  vehicle        Vehicle              @relation(fields: [vehicleId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  driver         User                 @relation(fields: [driverId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  status         TripStatus     @default(SCHEDULED)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  schedule       Schedule       @relation(fields: [scheduleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  route          Route          @relation(fields: [routeId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  vehicle        Vehicle        @relation(fields: [vehicleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  driver         User           @relation(fields: [driverId, organizationId], references: [id, organizationId], onDelete: Restrict)
   pings          TripPing[]
   notifications  Notification[]
   incidents      Incident[]
@@ -302,18 +305,18 @@ enum TripStatus {
 }
 
 model TripPing {
-  id                String   @id @default(uuid())
+  id                String      @id @default(uuid())
   organizationId    String
   tripId            String
   latitude          Float
   longitude         Float
-  accuracy          Float    @default(1.0)
+  accuracy          Float       @default(1.0)
   speed             Float
   heading           Float?
   sequence          Int
-  timestamp         DateTime @default(now())
-  receivedTimestamp DateTime @default(now())
-  trip              Trip     @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  timestamp         DateTime    @default(now())
+  receivedTimestamp DateTime    @default(now())
+  trip              Trip        @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Cascade)
   emergencies       Emergency[]
 
   @@index([tripId, timestamp])
@@ -353,8 +356,8 @@ model UserNotificationPreference {
   pushEnabled       Boolean  @default(true)
   emailEnabled      Boolean  @default(false)
   inAppEnabled      Boolean  @default(true)
-  quietHoursStart   String?  // e.g. "22:00"
-  quietHoursEnd     String?  // e.g. "06:00"
+  quietHoursStart   String? // e.g. "22:00"
+  quietHoursEnd     String? // e.g. "06:00"
   timezone          String   @default("UTC")
   language          String   @default("en")
   emergencyOverride Boolean  @default(true)
@@ -368,14 +371,14 @@ model UserNotificationPreference {
 model NotificationTemplate {
   id             String   @id @default(uuid())
   organizationId String
-  eventKey       String   // e.g., "trip.started"
-  channel        String   // IN_APP, EMAIL, SMS, PUSH
+  eventKey       String // e.g., "trip.started"
+  channel        String // IN_APP, EMAIL, SMS, PUSH
   language       String   @default("en")
   subject        String?
-  body           String   // Content with placeholders
+  body           String // Content with placeholders
   version        Int      @default(1)
   isActive       Boolean  @default(true)
-  auditFields    Json?    // e.g. { createdBy: "userId" }
+  auditFields    Json? // e.g. { createdBy: "userId" }
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -384,41 +387,41 @@ model NotificationTemplate {
 }
 
 model Notification {
-  id             String       @id @default(uuid())
+  id             String    @id @default(uuid())
   organizationId String
-  correlationId  String?      // for tracking across distributed systems
+  correlationId  String? // for tracking across distributed systems
   tripId         String?
   eventKey       String
-  priority       String       // EMERGENCY, HIGH, NORMAL, LOW
-  payload        Json         // the raw data
+  priority       String // EMERGENCY, HIGH, NORMAL, LOW
+  payload        Json // the raw data
   expiresAt      DateTime?
-  createdAt      DateTime     @default(now())
-  
-  trip           Trip?        @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: SetNull)
-  recipients     NotificationRecipient[]
+  createdAt      DateTime  @default(now())
+
+  trip       Trip?                   @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  recipients NotificationRecipient[]
 }
 
 model NotificationRecipient {
-  id               String       @id @default(uuid())
-  organizationId   String
-  notificationId   String
-  userId           String
-  channel          String       // IN_APP, EMAIL, SMS, PUSH
-  status           NotificationDeliveryStatus @default(QUEUED)
-  retryCount       Int          @default(0)
-  errorMessage     String?
-  queuedAt         DateTime     @default(now())
-  processingAt     DateTime?
-  sentAt           DateTime?
-  deliveredAt      DateTime?
-  readAt           DateTime?
-  failedAt         DateTime?
-  expiredAt        DateTime?
-  idempotencyKey   String?      @unique
-  
-  notification     Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  user             User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  
+  id             String                     @id @default(uuid())
+  organizationId String
+  notificationId String
+  userId         String
+  channel        String // IN_APP, EMAIL, SMS, PUSH
+  status         NotificationDeliveryStatus @default(QUEUED)
+  retryCount     Int                        @default(0)
+  errorMessage   String?
+  queuedAt       DateTime                   @default(now())
+  processingAt   DateTime?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedAt       DateTime?
+  expiredAt      DateTime?
+  idempotencyKey String?                    @unique
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
   @@index([organizationId, status])
   @@index([userId, status])
 }
@@ -491,47 +494,47 @@ model DataPurgeLog {
 }
 
 model Emergency {
-  id              String             @id @default(uuid())
-  organizationId  String
-  tripId          String
-  reporterId      String
-  tripPingId      String?
-  status          EmergencyStatus    @default(ACTIVE)
-  category        EmergencyCategory
-  description     String?
-  priority        String             @default("HIGH")
-  severity        EmergencySeverity  @default(HIGH)
-  correlationId   String             @unique
-  version         Int                @default(1)
-  deletedAt       DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id             String            @id @default(uuid())
+  organizationId String
+  tripId         String
+  reporterId     String
+  tripPingId     String?
+  status         EmergencyStatus   @default(ACTIVE)
+  category       EmergencyCategory
+  description    String?
+  priority       String            @default("HIGH")
+  severity       EmergencySeverity @default(HIGH)
+  correlationId  String            @unique
+  version        Int               @default(1)
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  trip            Trip               @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  organization    Organization       @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
-  reporter        User               @relation("EmergencyReporter", fields: [reporterId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  tripPing        TripPing?          @relation(fields: [tripPingId], references: [id], onDelete: SetNull)
-  
-  history         EmergencyHistory[]
-  
+  trip         Trip         @relation(fields: [tripId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  reporter     User         @relation("EmergencyReporter", fields: [reporterId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  tripPing     TripPing?    @relation(fields: [tripPingId], references: [id], onDelete: SetNull)
+
+  history EmergencyHistory[]
+
   @@unique([tripId, status], name: "activeEmergencyPerTrip")
   @@index([organizationId, status])
 }
 
 model EmergencyHistory {
-  id              String             @id @default(uuid())
-  organizationId  String
-  emergencyId     String
-  actorId         String
-  previousState   EmergencyStatus?
-  newState        EmergencyStatus?
-  eventType       String
-  metadata        Json?
-  timestamp       DateTime           @default(now())
+  id             String           @id @default(uuid())
+  organizationId String
+  emergencyId    String
+  actorId        String
+  previousState  EmergencyStatus?
+  newState       EmergencyStatus?
+  eventType      String
+  metadata       Json?
+  timestamp      DateTime         @default(now())
 
-  emergency       Emergency          @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
-  actor           User               @relation(fields: [actorId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  
+  emergency Emergency @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+  actor     User      @relation(fields: [actorId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
   @@index([emergencyId, timestamp])
 }
 
@@ -558,4 +561,44 @@ enum EmergencySeverity {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+model ReportSubscription {
+  id             String   @id @default(uuid())
+  organizationId String
+  creatorId      String
+  reportType     String // 'FLEET_UTILIZATION', 'ATTENDANCE_SUMMARY'
+  frequency      String // 'DAILY', 'WEEKLY', 'MONTHLY'
+  format         String // 'CSV', 'JSON'
+  targetEmails   String[]
+  isActive       Boolean  @default(true)
+  nextRunAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  creator      User              @relation(fields: [creatorId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  executions   ReportExecution[]
+
+  @@index([nextRunAt, isActive])
+  @@index([organizationId])
+}
+
+model ReportExecution {
+  id             String    @id @default(uuid())
+  organizationId String
+  subscriptionId String?
+  status         String // 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED'
+  errorMessage   String?
+  fileSize       Int?
+  tokenHash      String?   @unique // Single-use secure token
+  tokenExpiresAt DateTime?
+  retryCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  subscription ReportSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
 }
