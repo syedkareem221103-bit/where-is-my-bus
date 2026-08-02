@@ -55,3 +55,39 @@ export interface DriverKPIs {
   routeCompliancePct: number;
   passengerAttendanceAccuracyPct: number;
 }
+
+export interface RouteKPIs {
+  routeId: string;
+  routeName: string;
+  efficiencyScore: number;
+  plannedDistanceKm: number;
+  actualDistanceKm: number;
+  distanceDeviationPct: number;
+  plannedDurationMins: number;
+  actualDurationMins: number;
+  timeDeviationMins: number;
+  averageStopDelayMins: number;
+  routeCompletionRate: number;
+  stopCompliancePct: number;
+  missedStops: number;
+  averageVehicleSpeed: number;
+  idleTimeMins: number;
+}
+
+export interface TripPingReplay {
+  lat: number;
+  lng: number;
+  speed: number;
+  timestamp: string;
+}
+
+export interface TripReplay {
+  tripId: string;
+  routeId: string;
+  routeName: string;
+  vehicleNumber: string;
+  driverName: string;
+  startTime: string;
+  endTime: string;
+  pings: TripPingReplay[];
+}

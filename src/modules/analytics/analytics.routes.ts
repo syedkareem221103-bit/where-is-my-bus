@@ -13,4 +13,8 @@ router.get('/live', AnalyticsController.getLive);
 router.get('/drivers/performance', AnalyticsController.getDriverPerformance);
 router.get('/drivers/performance/:id', AnalyticsController.getDriverPerformance);
 
+router.get('/routes/performance', AnalyticsController.getRoutePerformance);
+router.get('/routes/performance/:id', AnalyticsController.getRoutePerformance);
+router.get('/routes/replay/:tripId', AnalyticsController.getRouteReplay);
+
 export default router;

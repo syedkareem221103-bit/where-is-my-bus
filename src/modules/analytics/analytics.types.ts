@@ -75,3 +75,30 @@ export interface DriverKPIs {
   routeCompliancePct: number;
   passengerAttendanceAccuracyPct: number;
 }
+
+export const RouteAnalyticsFilterSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d', '1y', 'all']),
+  routeIds: z.array(z.string().uuid()).optional(),
+  sortBy: z.enum(['efficiency', 'delay', 'distance']).default('efficiency'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc')
+});
+
+export type RouteAnalyticsFilterQuery = z.infer<typeof RouteAnalyticsFilterSchema>;
+
+export interface RouteKPIs {
+  routeId: string;
+  routeName: string;
+  efficiencyScore: number;
+  plannedDistanceKm: number;
+  actualDistanceKm: number;
+  distanceDeviationPct: number;
+  plannedDurationMins: number;
+  actualDurationMins: number;
+  timeDeviationMins: number;
+  averageStopDelayMins: number;
+  routeCompletionRate: number;
+  stopCompliancePct: number;
+  missedStops: number;
+  averageVehicleSpeed: number;
+  idleTimeMins: number;
+}

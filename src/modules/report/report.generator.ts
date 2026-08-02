@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import logger from '../../utils/logger';
 import AuditService from '../../services/audit.service';
 import { driverPerformanceService } from '../analytics/driver-performance.service';
+import { RouteEfficiencyService } from '../analytics/route-efficiency.service';
 
 const prisma = new PrismaClient();
 const storage = LocalStorageService.getInstance();
@@ -122,6 +123,9 @@ export class ReportGenerator {
             sortBy: 'score',
             sortOrder: 'desc'
           });
+          data.forEach(d => pt.push(d));
+        } else if (reportType === 'ROUTE_EFFICIENCY') {
+          const data = await RouteEfficiencyService.getRouteEfficiency(organizationId, '30d');
           data.forEach(d => pt.push(d));
         } else {
           // ATTENDANCE_SUMMARY
