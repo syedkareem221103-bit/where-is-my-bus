@@ -5,7 +5,7 @@ export interface Geofence {
   id: string;
   name: string;
   type: string;
-  geometry: { type: string; coordinates: any[]; radius?: number };
+  geometry: { type: string; coordinates: unknown[]; radius?: number };
   isActive: boolean;
 }
 

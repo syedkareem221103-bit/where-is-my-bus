@@ -7,6 +7,7 @@ import SocketServer from './realtime/socket.server';
 import { eventBus } from './utils/event-bus';
 import { FleetAggregator } from './modules/fleet/fleet.aggregator';
 import { reportScheduler } from './modules/report/report.scheduler';
+import { HealthScheduler } from './modules/health/health.scheduler.service';
 
 const server = createServer(app);
 
@@ -16,6 +17,9 @@ socketServer.init(server);
 
 // Initialize Fleet Aggregator for Admin Dashboards
 FleetAggregator.getInstance();
+
+// Initialize System Health Monitoring
+HealthScheduler.initialize();
 
 async function bootstrap() {
   try {

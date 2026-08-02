@@ -26,6 +26,7 @@ import analyticsRouter from './modules/analytics/analytics.routes';
 import { reportRoutes } from './modules/report/report.routes';
 import geofenceRouter from './modules/geofence/geofence.routes';
 import alertRouter from './modules/alert/alert.routes';
+import healthRouter from './modules/health/health.routes';
 const app: Express = express();
 
 // Initialize and validate cryptographic keys at startup
@@ -115,6 +116,7 @@ app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/geofences', geofenceRouter);
 app.use('/api/v1/alerts', alertRouter);
+app.use('/api/v1/system/health', healthRouter);
 // 6. 404 Fallback Router Handler
 app.use((_req, res) => {
   res.status(404).json({ status: 'error', message: 'Requested REST endpoint not found' });

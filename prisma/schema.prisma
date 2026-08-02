@@ -673,3 +673,25 @@ enum AlertStatus {
   ACKNOWLEDGED
   RESOLVED
 }
+
+model SystemHealthSnapshot {
+  id              String   @id @default(uuid())
+  timestamp       DateTime @default(now())
+  cpuUsage        Float
+  memoryUsage     Float
+  activeSockets   Int
+  activeTrips     Int
+  errorRate       Float
+  status          HealthStatus
+  metricsPayload  Json     // Granular metrics: queue sizes, DB latency, etc.
+
+  @@index([timestamp])
+}
+
+enum HealthStatus {
+  HEALTHY
+  WARNING
+  DEGRADED
+  CRITICAL
+  OFFLINE
+}
