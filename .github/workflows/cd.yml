@@ -1,0 +1,113 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}/backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}/frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker (Backend)
+        id: meta_backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Build and push Backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Docker (Frontend)
+        id: meta_frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Build and push Frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
+
+  deploy-production:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+      url: https://your-production-url.com
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Production via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.PRODUCTION_REDIS_URL }}
+          JWT_SECRET: ${{ secrets.PRODUCTION_JWT_SECRET }}
+        with:
+          host: ${{ secrets.PROD_SERVER_IP }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: DATABASE_URL,REDIS_URL,JWT_SECRET
+          script: |
+            cd /opt/where-is-my-bus
+            
+            # Export secrets for docker-compose
+            export DATABASE_URL=$DATABASE_URL
+            export REDIS_URL=$REDIS_URL
+            export JWT_SECRET=$JWT_SECRET
+            
+            # Run the deployment wrapper script (Zero-Downtime Rollout)
+            bash scripts/deploy.sh
+            
+      - name: Post-Deployment Smoke Tests
+        run: |
+          # Verify Health Endpoint
+          HEALTH_STATUS=$(curl -s http://${{ secrets.PROD_SERVER_IP }}/api/v1/system/health | jq -r '.status')
+          if [ "$HEALTH_STATUS" != "HEALTHY" ]; then
+            echo "Smoke test failed! Status is $HEALTH_STATUS"
+            exit 1
+          fi
+          
+          # Verify Frontend Load
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.PROD_SERVER_IP }}/)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Frontend not returning 200 OK"
+            exit 1
+          fi

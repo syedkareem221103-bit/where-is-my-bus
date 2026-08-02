@@ -1,51 +1,65 @@
 # Stage 1: Build
-FROM node:20 AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+# Install dependencies required for Prisma and native modules
+RUN apk add --no-cache openssl
 
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install all dependencies (including devDependencies for build)
+# Install all dependencies (including devDependencies for building)
 RUN npm ci
+
+# Copy source code
+COPY . .
 
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Copy source code and build
-COPY . .
+# Build TypeScript code
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20 AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
 # Set NODE_ENV to production to enforce secure defaults
 ENV NODE_ENV=production
 
-# Copy package files for installing only production dependencies
+# Install openssl for Prisma in production
+RUN apk add --no-cache openssl
+
+# Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install only production dependencies
 RUN npm ci --omit=dev
 
-# Generate Prisma Client (needed in the runner stage as well)
-RUN npx prisma generate
+# Copy generated Prisma client from builder
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy the built artifacts from the builder stage
+# Copy built code from builder
 COPY --from=builder /app/dist ./dist
 
-# Create a non-root user and switch to it for security
-RUN groupadd -g 1001 nodejs && \
-    useradd -u 1001 -g nodejs -s /bin/bash -m nodejs
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# Expose the default application port
+# Expose API port
 EXPOSE 4000
+
+# Health Check (requires curl, but node alpine doesn't have it by default. 
+# We'll use wget which is built into alpine/busybox)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:4000/api/v1/system/health || exit 1
 
 # Start the application
 CMD ["node", "dist/server.js"]
