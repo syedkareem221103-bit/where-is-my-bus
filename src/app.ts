@@ -24,6 +24,8 @@ import attendanceRouter from './modules/attendance/attendance.routes';
 import parentRouter from './modules/parent/parent.routes';
 import analyticsRouter from './modules/analytics/analytics.routes';
 import { reportRoutes } from './modules/report/report.routes';
+import geofenceRouter from './modules/geofence/geofence.routes';
+import alertRouter from './modules/alert/alert.routes';
 const app: Express = express();
 
 // Initialize and validate cryptographic keys at startup
@@ -111,6 +113,8 @@ app.use('/api/v1/attendance', attendanceRouter);
 app.use('/api/v1/parents', parentRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/geofences', geofenceRouter);
+app.use('/api/v1/alerts', alertRouter);
 // 6. 404 Fallback Router Handler
 app.use((_req, res) => {
   res.status(404).json({ status: 'error', message: 'Requested REST endpoint not found' });

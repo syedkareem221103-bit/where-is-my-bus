@@ -4,6 +4,9 @@ import { BadRequestError } from '../../errors';
 import { TripPing } from '@prisma/client';
 import { LiveTrackingService } from '../../services/live-tracking.service';
 import { TripService } from './trip.service';
+import GeofenceEvaluationService from '../geofence/geofence.evaluation.service';
+import AlertProcessingService from '../alert/alert.processing.service';
+import logger from '../../utils/logger';
 
 export class GpsTrackingService {
   private tripRepository = new TripRepository();
@@ -60,6 +63,14 @@ export class GpsTrackingService {
       heading: ping.heading,
       recordedAt: ping.timestamp.toISOString(),
     });
+
+    // 🚀 NEW: Trigger Geofencing & Smart Alerts Evaluation 
+    try {
+      const gfResults = GeofenceEvaluationService.evaluateLocation(organizationId, ping.latitude, ping.longitude);
+      await AlertProcessingService.evaluateRulesAndDispatch(organizationId, tripId, ping, gfResults);
+    } catch (err) {
+      logger.error('Geofencing evaluation error:', { error: err });
+    }
 
     // Also calculate and broadcast ETA
     try {
