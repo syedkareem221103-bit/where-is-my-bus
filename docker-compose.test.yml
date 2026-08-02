@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  postgres_test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: bus_admin
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: bus_db_test
+    ports:
+      - "5433:5432" # Use a different port to avoid conflict with dev/prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bus_admin -d bus_db_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis_test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379" # Use a different port
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
