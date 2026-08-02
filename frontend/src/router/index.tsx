@@ -27,6 +27,7 @@ const RoutesList = React.lazy(() => import('@/pages/admin/RoutesList').then(m =>
 const TripsList = React.lazy(() => import('@/pages/admin/TripsList').then(m => ({ default: m.TripsList })));
 const AttendanceList = React.lazy(() => import('@/pages/admin/AttendanceList').then(m => ({ default: m.AttendanceList })));
 const ReportsDashboard = React.lazy(() => import('@/pages/admin/ReportsDashboard').then(m => ({ default: m.ReportsDashboard })));
+const AnalyticsDashboard = React.lazy(() => import('@/pages/admin/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const SettingsPage = React.lazy(() => import('@/pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const EmergencyDashboard = React.lazy(() => import('@/pages/admin/EmergencyDashboard').then(m => ({ default: m.EmergencyDashboard })));
 
@@ -151,6 +152,10 @@ const router = createBrowserRouter([
               {
                 path: 'reports',
                 element: withSuspense(ReportsDashboard),
+              },
+              {
+                path: 'analytics',
+                element: withSuspense(AnalyticsDashboard),
               },
               {
                 path: 'settings',
