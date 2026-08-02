@@ -9,6 +9,11 @@ import { initializeKeys } from './utils/crypto';
 import rateLimiter from './middlewares/rate-limiter';
 import prisma from './config/database';
 import env from './config/env';
+import client from 'prom-client';
+
+// Enable default metrics (CPU, memory, event loop lag, etc.)
+client.collectDefaultMetrics({ prefix: 'wimb_' });
+
 
 // Import Modular Routers
 import authRouter from './modules/auth/auth.routes';
@@ -81,6 +86,16 @@ app.get('/health', (_req, res) => {
     uptime: process.uptime()
   });
 });
+
+app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
+  } catch (ex) {
+    res.status(500).end((ex as Error).message);
+  }
+});
+
 
 app.get('/ready', async (_req, res, next) => {
   try {
