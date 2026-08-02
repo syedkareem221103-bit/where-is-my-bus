@@ -1,22 +1,22 @@
 #!/bin/bash
-set -euo pipefail
+# rollback.sh
+# Rollback script to a previous image tag
 
-echo "Starting Emergency Rollback..."
+set -e
 
-# Pull the previously tagged stable image (we assume CI tags with :previous prior to deployment)
-# For a simpler approach, we just restart the container to the last stable state or pull 'previous' tag
-export TAG=previous
+if [ -z "$1" ]; then
+  echo "Usage: $0 <previous_image_tag>"
+  exit 1
+fi
 
-echo "Pulling previous stable images..."
-# In a real environment, you'd pull the specific SHA that was last working,
-# but for our simple docker-compose flow, we might just re-up the old tag if we tracked it.
-# Assuming ghcr.io/syedkareem221103-bit/backend:previous exists
+PREVIOUS_TAG=$1
 
-# Update docker-compose ENV to use :previous tag for rollback
-# SED or environment variable substitution happens here
-# For now, simply revert the compose state
+echo "Initiating rollback to tag: $PREVIOUS_TAG"
 
-docker-compose down backend nginx
-docker-compose up -d backend nginx
+# Assuming the docker-compose file uses an environment variable for the tag, or sed is used.
+# For simplicity, if we have a tagged image we can just force the backend to use it.
+echo "Manually forcing backend to $PREVIOUS_TAG (This requires docker-compose modification or TAG variable support)"
+export IMAGE_TAG=$PREVIOUS_TAG
+docker-compose -f docker-compose.prod.yml up -d
 
-echo "Rollback initiated. Containers restarted with previous configuration."
+echo "Rollback initiated. Please run verify.sh"
