@@ -28,6 +28,7 @@ const TripsList = React.lazy(() => import('@/pages/admin/TripsList').then(m => (
 const AttendanceList = React.lazy(() => import('@/pages/admin/AttendanceList').then(m => ({ default: m.AttendanceList })));
 const ReportsDashboard = React.lazy(() => import('@/pages/admin/ReportsDashboard').then(m => ({ default: m.ReportsDashboard })));
 const AnalyticsDashboard = React.lazy(() => import('@/pages/admin/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const DriverAnalyticsDashboard = React.lazy(() => import('@/pages/admin/DriverAnalyticsDashboard').then(m => ({ default: m.DriverAnalyticsDashboard })));
 const SettingsPage = React.lazy(() => import('@/pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const EmergencyDashboard = React.lazy(() => import('@/pages/admin/EmergencyDashboard').then(m => ({ default: m.EmergencyDashboard })));
 
@@ -156,6 +157,10 @@ const router = createBrowserRouter([
               {
                 path: 'analytics',
                 element: withSuspense(AnalyticsDashboard),
+              },
+              {
+                path: 'analytics/driver',
+                element: withSuspense(DriverAnalyticsDashboard),
               },
               {
                 path: 'settings',

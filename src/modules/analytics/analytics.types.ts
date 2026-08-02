@@ -45,3 +45,33 @@ export interface AnalyticsSnapshot {
   live: LiveKPIs;
   timestamp: string;
 }
+
+export const GetDriverPerformanceSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d', '1y', 'all']),
+  driverId: z.string().uuid().optional(),
+  sortBy: z.enum(['score', 'trips', 'punctuality', 'safety']).default('score'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export type GetDriverPerformanceQuery = z.infer<typeof GetDriverPerformanceSchema>;
+
+export interface DriverKPIs {
+  driverId: string;
+  driverName: string;
+  driverScore: number;
+  onTimeArrivalPct: number;
+  tripCompletionRate: number;
+  averageDelayMins: number;
+  averageEtaAccuracyMins: number;
+  attendanceCompliancePct: number;
+  totalTrips: number;
+  completedTrips: number;
+  cancelledTrips: number;
+  emergencyIncidents: number;
+  safetyEvents: number;
+  averageTripDurationMins: number;
+  distanceDrivenKm: number;
+  idleTimeMins: number;
+  routeCompliancePct: number;
+  passengerAttendanceAccuracyPct: number;
+}

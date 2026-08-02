@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AnalyticsService } from './analytics.service';
-import { AnalyticsFilterSchema } from './analytics.types';
+import { driverPerformanceService } from './driver-performance.service';
+import { AnalyticsFilterSchema, GetDriverPerformanceSchema } from './analytics.types';
 import logger from '../../utils/logger';
 
 export class AnalyticsController {
@@ -42,6 +43,31 @@ export class AnalyticsController {
       res.json({ data });
     } catch (err: any) {
       logger.error('Error fetching live analytics:', err);
+      next(err);
+    }
+  }
+
+  static async getDriverPerformance(req: Request, res: Response, next: NextFunction) {
+    try {
+      const organizationId = (req as any).user?.org || (req as any).user?.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Merge query and params if looking for specific driver via route param
+      const query = {
+        timeRange: req.query.timeRange || '30d',
+        driverId: req.params.id || req.query.driverId,
+        sortBy: req.query.sortBy || 'score',
+        sortOrder: req.query.sortOrder || 'desc',
+      };
+
+      const validatedQuery = GetDriverPerformanceSchema.parse(query);
+      const data = await driverPerformanceService.getDriverRankings(organizationId, validatedQuery);
+
+      res.json(data);
+    } catch (err: any) {
+      logger.error('Error fetching driver performance:', err);
       next(err);
     }
   }

@@ -10,5 +10,7 @@ router.use(requireRoles('ORG_ADMIN', 'SUPER_ADMIN'));
 
 router.get('/historical', AnalyticsController.getHistorical);
 router.get('/live', AnalyticsController.getLive);
+router.get('/drivers/performance', AnalyticsController.getDriverPerformance);
+router.get('/drivers/performance/:id', AnalyticsController.getDriverPerformance);
 
 export default router;

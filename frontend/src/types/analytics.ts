@@ -34,3 +34,24 @@ export interface AnalyticsFilter {
   routeIds?: string[];
   driverIds?: string[];
 }
+
+export interface DriverKPIs {
+  driverId: string;
+  driverName: string;
+  driverScore: number;
+  onTimeArrivalPct: number;
+  tripCompletionRate: number;
+  averageDelayMins: number;
+  averageEtaAccuracyMins: number;
+  attendanceCompliancePct: number;
+  totalTrips: number;
+  completedTrips: number;
+  cancelledTrips: number;
+  emergencyIncidents: number;
+  safetyEvents: number;
+  averageTripDurationMins: number;
+  distanceDrivenKm: number;
+  idleTimeMins: number;
+  routeCompliancePct: number;
+  passengerAttendanceAccuracyPct: number;
+}

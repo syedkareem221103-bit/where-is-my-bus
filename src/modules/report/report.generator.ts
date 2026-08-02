@@ -5,6 +5,7 @@ import { ExportEngine } from './export.engine';
 import crypto from 'crypto';
 import logger from '../../utils/logger';
 import AuditService from '../../services/audit.service';
+import { driverPerformanceService } from '../analytics/driver-performance.service';
 
 const prisma = new PrismaClient();
 const storage = LocalStorageService.getInstance();
@@ -115,6 +116,13 @@ export class ReportGenerator {
           // Mock data
           pt.push({ date: new Date().toISOString(), metric: 'Active Vehicles', value: 12 });
           pt.push({ date: new Date().toISOString(), metric: 'Idle Time', value: '45m' });
+        } else if (reportType === 'DRIVER_PERFORMANCE') {
+          const data = await driverPerformanceService.getDriverRankings(organizationId, {
+            timeRange: '30d',
+            sortBy: 'score',
+            sortOrder: 'desc'
+          });
+          data.forEach(d => pt.push(d));
         } else {
           // ATTENDANCE_SUMMARY
           pt.push({ studentId: 'stu-1', present: 20, absent: 2 });
