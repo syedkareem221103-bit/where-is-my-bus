@@ -17,7 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "6.2.1",
+    "@prisma/client": "6.19.3",
     "@turf/turf": "^7.3.5",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
