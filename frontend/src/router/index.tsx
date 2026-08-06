@@ -16,6 +16,12 @@ const LogoutPage = React.lazy(() => import('@/pages/auth/LogoutPage').then(m => 
 const UnauthorizedPage = React.lazy(() => import('@/pages/error/UnauthorizedPage').then(m => ({ default: m.UnauthorizedPage })));
 const ForbiddenPage = React.lazy(() => import('@/pages/error/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
 
+const HomePage = React.lazy(() =>
+  import('@/pages/public/HomePage').then(m => ({
+    default: m.HomePage,
+  }))
+);
+
 const AdminDashboard = React.lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const OrganizationsList = React.lazy(() => import('@/pages/admin/OrganizationsList').then(m => ({ default: m.OrganizationsList })));
 const UsersList = React.lazy(() => import('@/pages/admin/UsersList').then(m => ({ default: m.UsersList })));
@@ -75,7 +81,7 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <div>Welcome to Where is my Bus (Public Landing Placeholder)</div>,
+            element: withSuspense(HomePage),
           },
           {
             path: 'login',
