@@ -48,7 +48,7 @@ export const authenticateUser = async (req: Request, _res: Response, next: NextF
     const targetTenant = req.headers['x-target-tenant'] as string | undefined;
     if (payload.role === 'SUPER_ADMIN' && targetTenant) {
       // Validate target organization
-      const org = await prisma.organization.findUnique({ where: { id: targetTenant } });
+      const org = await prisma.organization.findUnique({ where: { organizationId: targetTenant } });
       if (!org || org.status !== 'ACTIVE') {
         return next(new UnauthorizedError('Invalid target tenant'));
       }

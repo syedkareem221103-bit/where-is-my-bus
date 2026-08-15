@@ -27,10 +27,6 @@ export class AuthService {
       throw new ConflictError('An organization with this subdomain already exists');
     }
 
-    const existingOrgByEmail = await this.authRepository.findOrganizationByEmail(dto.contactEmail);
-    if (existingOrgByEmail) {
-      throw new ConflictError('An organization with this contact email already exists');
-    }
 
     // 2. Validate administrator uniqueness
     const existingUser = await this.authRepository.findUserByEmail(dto.adminEmail);
@@ -74,9 +70,17 @@ export class AuthService {
       jti,
     });
 
-    // We don't persist DeviceSession here because Step 3A didn't require it and we shouldn't modify it excessively, 
-    // but the user will need to log in to get a valid refresh session.
-    await this.authRepository.updateUserRefreshToken(admin.id, tokens.refreshToken);
+    const tokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.authRepository.createDeviceSession({
+      id: sid,
+      organizationId: admin.organizationId,
+      userId: admin.id,
+      tokenHash,
+      deviceType: 'Unknown',
+      expiresAt,
+    });
 
     return {
       organization,
@@ -96,8 +100,8 @@ export class AuthService {
     const user = await this.authRepository.findUserByEmail(email);
     if (!user) {
       // Dummy check to prevent email enumeration timing side-channels
-      const dummyHash = await bcrypt.hash('dummy', 10);
-      await bcrypt.compare(passwordHash, dummyHash);
+      const DUMMY_HASH = '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa';
+      await bcrypt.compare(passwordHash, DUMMY_HASH);
       throw new UnauthorizedError('Invalid email or password');
     }
 
@@ -114,7 +118,7 @@ export class AuthService {
     // Verify Organization is active (applicable only to non-SUPER_ADMIN users)
     if (user.organizationId) {
       const org = await prisma.organization.findUnique({
-        where: { id: user.organizationId },
+        where: { organizationId: user.organizationId },
       });
       if (!org || org.status !== 'ACTIVE') {
         throw new ForbiddenError('Your organization has been suspended. Please contact customer support');
@@ -184,7 +188,7 @@ export class AuthService {
 
     if (user.organizationId) {
       const org = await prisma.organization.findUnique({
-        where: { id: user.organizationId },
+        where: { organizationId: user.organizationId },
       });
       if (!org || org.status !== 'ACTIVE') {
         throw new ForbiddenError('Your organization has been suspended');

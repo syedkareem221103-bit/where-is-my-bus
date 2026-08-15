@@ -20,11 +20,7 @@ export class AuthRepository {
     });
   }
 
-  async findOrganizationByEmail(email: string): Promise<Organization | null> {
-    return prisma.organization.findUnique({
-      where: { organizationId: email },
-    });
-  }
+
 
   async createOrganizationWithAdmin(
     orgInput: Prisma.OrganizationCreateInput,
@@ -48,11 +44,7 @@ export class AuthRepository {
     });
   }
 
-  async updateUserRefreshToken(userId: string, refreshToken: string | null): Promise<User> {
-    return prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-    });
-  }
+
 
   async createDeviceSession(data: Prisma.DeviceSessionUncheckedCreateInput): Promise<DeviceSession> {
     return prisma.deviceSession.create({ data });
