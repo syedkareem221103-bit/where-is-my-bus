@@ -114,9 +114,17 @@ export class TripController {
 
   getActive = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const organizationId = req.user!.organizationId;
+
+      if (!organizationId) {
+        throw new BadRequestError('Only organization members can view active trips');
+      }
+
+      const trips = await this.tripService.getActiveTrips(organizationId);
+
       res.status(200).json({
         status: 'success',
-        data: { trips: [] },
+        data: { trips },
       });
     } catch (error) {
       next(error);

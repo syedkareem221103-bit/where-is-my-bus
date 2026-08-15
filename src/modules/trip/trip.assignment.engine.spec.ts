@@ -10,6 +10,7 @@ jest.mock('../../config/database', () => ({
     user: { findUnique: jest.fn() },
     route: { findUnique: jest.fn() },
     schedule: { findUnique: jest.fn() },
+    trip: { findFirst: jest.fn() },
   }
 }));
 
@@ -39,9 +40,7 @@ describe('TripAssignmentEngine', () => {
     (prisma.route.findUnique as jest.Mock).mockResolvedValue({ id: data.routeId, organizationId: orgId, status: 'ACTIVE' });
     (prisma.schedule.findUnique as jest.Mock).mockResolvedValue({ id: data.scheduleId, organizationId: orgId, routeId: data.routeId, isActive: true });
     
-    mockTripRepository.findAssignedTripByDriverAndDate.mockResolvedValue(null);
-    mockTripRepository.findAssignedTripByVehicleAndDate.mockResolvedValue(null);
-    mockTripRepository.findAssignedTripByScheduleAndDate.mockResolvedValue(null);
+    (prisma.trip.findFirst as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -74,17 +73,26 @@ describe('TripAssignmentEngine', () => {
   });
 
   it('should throw BadRequestError if driver is double booked', async () => {
-    mockTripRepository.findAssignedTripByDriverAndDate.mockResolvedValue({ id: 'trip-1' } as any);
+    (prisma.trip.findFirst as jest.Mock).mockImplementation(async ({ where }) => {
+      if (where.driverId) return { id: 'trip-1' };
+      return null;
+    });
     await expect(engine.validateAssignment(orgId, data)).rejects.toThrow(/Driver is already assigned/);
   });
 
   it('should throw BadRequestError if vehicle is double booked', async () => {
-    mockTripRepository.findAssignedTripByVehicleAndDate.mockResolvedValue({ id: 'trip-1' } as any);
+    (prisma.trip.findFirst as jest.Mock).mockImplementation(async ({ where }) => {
+      if (where.vehicleId) return { id: 'trip-1' };
+      return null;
+    });
     await expect(engine.validateAssignment(orgId, data)).rejects.toThrow(/Vehicle is already assigned/);
   });
 
   it('should throw BadRequestError if schedule is double booked for the day', async () => {
-    mockTripRepository.findAssignedTripByScheduleAndDate.mockResolvedValue({ id: 'trip-1' } as any);
+    (prisma.trip.findFirst as jest.Mock).mockImplementation(async ({ where }) => {
+      if (where.scheduleId) return { id: 'trip-1' };
+      return null;
+    });
     await expect(engine.validateAssignment(orgId, data)).rejects.toThrow(/A trip is already assigned for this schedule/);
   });
 });

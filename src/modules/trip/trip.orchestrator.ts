@@ -37,13 +37,31 @@ export class TripLifecycleOrchestrator {
     // Validate Business Rules
     this.validationEngine.validateStart(existingTrip);
 
+    if (existingTrip.driverId !== data.driverId) {
+      throw new Error('Driver is not assigned to this trip');
+    }
+    if (existingTrip.vehicleId !== data.vehicleId) {
+      throw new Error('Vehicle is not assigned to this trip');
+    }
+
     // Validate State Machine
     TripStateMachine.validateTransition(existingTrip.status, TripStatus.STARTED);
 
-    // Execute Transition
-    const updatedTrip = await this.tripRepository.update(existingTrip.id, organizationId, {
-      status: TripStatus.STARTED,
+    // Execute Transition with concurrency control
+    const updateResult = await prisma.trip.updateMany({
+      where: {
+        id: existingTrip.id,
+        organizationId,
+        status: existingTrip.status,
+      },
+      data: { status: TripStatus.STARTED },
     });
+
+    if (updateResult.count === 0) {
+      throw new Error('Concurrency error: Trip status changed while attempting to update');
+    }
+
+    const updatedTrip = (await prisma.trip.findUnique({ where: { id: existingTrip.id } }))!;
 
     // Log the Event
     await this.auditService.logEvent({
@@ -73,9 +91,20 @@ export class TripLifecycleOrchestrator {
 
     TripStateMachine.validateTransition(trip.status, TripStatus.COMPLETED);
 
-    const updatedTrip = await this.tripRepository.update(tripId, organizationId, {
-      status: TripStatus.COMPLETED,
+    const updateResult = await prisma.trip.updateMany({
+      where: {
+        id: tripId,
+        organizationId,
+        status: trip.status,
+      },
+      data: { status: TripStatus.COMPLETED },
     });
+
+    if (updateResult.count === 0) {
+      throw new Error('Concurrency error: Trip status changed while attempting to update');
+    }
+
+    const updatedTrip = (await prisma.trip.findUnique({ where: { id: tripId } }))!;
 
     await this.auditService.logEvent({
       organizationId,
@@ -110,9 +139,20 @@ export class TripLifecycleOrchestrator {
 
     TripStateMachine.validateTransition(trip.status, newStatus);
 
-    const updatedTrip = await this.tripRepository.update(tripId, organizationId, {
-      status: newStatus,
+    const updateResult = await prisma.trip.updateMany({
+      where: {
+        id: tripId,
+        organizationId,
+        status: trip.status,
+      },
+      data: { status: newStatus },
     });
+
+    if (updateResult.count === 0) {
+      throw new Error('Concurrency error: Trip status changed while attempting to update');
+    }
+
+    const updatedTrip = (await prisma.trip.findUnique({ where: { id: tripId } }))!;
 
     await this.auditService.logEvent({
       organizationId,

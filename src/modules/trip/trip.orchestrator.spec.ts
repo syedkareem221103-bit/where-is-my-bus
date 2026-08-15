@@ -13,6 +13,7 @@ jest.mock('../audit/audit.service');
 jest.mock('../../config/database', () => ({
   prisma: {
     organization: { findUnique: jest.fn() },
+    trip: { updateMany: jest.fn(), findUnique: jest.fn() },
   }
 }));
 
@@ -35,9 +36,13 @@ describe('TripLifecycleOrchestrator', () => {
 
     (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '1', organizationId: orgId, timezone: 'Asia/Kolkata' });
     
-    mockTripRepository.findAssignedTripByScheduleAndDate.mockResolvedValue({ id: 'trip-1', status: 'SCHEDULED' } as any);
-    mockTripRepository.update.mockResolvedValue({ id: 'trip-1', status: 'STARTED' } as any);
-    mockTripRepository.findByIdAndOrg.mockResolvedValue({ id: 'trip-1', status: 'STARTED' } as any);
+    mockTripRepository.findAssignedTripByScheduleAndDate.mockResolvedValue({ id: 'trip-1', status: 'SCHEDULED', driverId: 'drv-1', vehicleId: 'veh-1' } as any);
+    mockTripRepository.findByIdAndOrg.mockResolvedValue({ id: 'trip-1', status: 'STARTED', driverId: 'drv-1', vehicleId: 'veh-1' } as any);
+    
+    (prisma.trip.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.trip.findUnique as jest.Mock).mockImplementation(({ where }) => {
+      return { id: where.id, status: 'STARTED' };
+    });
     
     mockValidationEngine.validateStart.mockImplementation(() => {});
   });
@@ -54,7 +59,10 @@ describe('TripLifecycleOrchestrator', () => {
 
       expect(mockValidationEngine.validateStart).toHaveBeenCalled();
       expect(TripStateMachine.validateTransition).toHaveBeenCalledWith('SCHEDULED', 'STARTED');
-      expect(mockTripRepository.update).toHaveBeenCalledWith('trip-1', orgId, { status: 'STARTED' });
+      expect(prisma.trip.updateMany).toHaveBeenCalledWith({
+        where: { id: 'trip-1', organizationId: orgId, status: 'SCHEDULED' },
+        data: { status: 'STARTED' },
+      });
       
       expect(mockAuditService.logEvent).toHaveBeenCalledWith(expect.objectContaining({
         userId: actorId,
@@ -72,12 +80,15 @@ describe('TripLifecycleOrchestrator', () => {
 
   describe('endTrip', () => {
     it('should transition to COMPLETED and log audit', async () => {
-      mockTripRepository.update.mockResolvedValue({ id: 'trip-1', status: 'COMPLETED' } as any);
+      (prisma.trip.findUnique as jest.Mock).mockResolvedValue({ id: 'trip-1', status: 'COMPLETED' });
 
       const trip = await orchestrator.endTrip(orgId, 'trip-1', actorId);
 
       expect(TripStateMachine.validateTransition).toHaveBeenCalledWith('STARTED', 'COMPLETED');
-      expect(mockTripRepository.update).toHaveBeenCalledWith('trip-1', orgId, { status: 'COMPLETED' });
+      expect(prisma.trip.updateMany).toHaveBeenCalledWith({
+        where: { id: 'trip-1', organizationId: orgId, status: 'STARTED' },
+        data: { status: 'COMPLETED' },
+      });
       expect(mockAuditService.logEvent).toHaveBeenCalled();
       expect(trip.status).toBe('COMPLETED');
     });
@@ -90,12 +101,15 @@ describe('TripLifecycleOrchestrator', () => {
 
   describe('updateTripStatus', () => {
     it('should transition status and log audit', async () => {
-      mockTripRepository.update.mockResolvedValue({ id: 'trip-1', status: 'EN_ROUTE' } as any);
+      (prisma.trip.findUnique as jest.Mock).mockResolvedValue({ id: 'trip-1', status: 'EN_ROUTE' });
 
       const trip = await orchestrator.updateTripStatus(orgId, 'trip-1', 'EN_ROUTE', actorId);
 
       expect(TripStateMachine.validateTransition).toHaveBeenCalledWith('STARTED', 'EN_ROUTE');
-      expect(mockTripRepository.update).toHaveBeenCalledWith('trip-1', orgId, { status: 'EN_ROUTE' });
+      expect(prisma.trip.updateMany).toHaveBeenCalledWith({
+        where: { id: 'trip-1', organizationId: orgId, status: 'STARTED' },
+        data: { status: 'EN_ROUTE' },
+      });
       expect(mockAuditService.logEvent).toHaveBeenCalled();
       expect(trip.status).toBe('EN_ROUTE');
     });

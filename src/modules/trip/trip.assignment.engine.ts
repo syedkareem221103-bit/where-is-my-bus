@@ -1,6 +1,7 @@
 import { TripRepository } from './trip.repository';
 import { prisma } from '../../config/database';
 import { BadRequestError, NotFoundError } from '../../errors';
+import { Prisma } from '@prisma/client';
 
 export class TripAssignmentEngine {
   private tripRepository = new TripRepository();
@@ -13,15 +14,17 @@ export class TripAssignmentEngine {
       routeId: string;
       scheduleId: string;
       serviceDate: string;
-    }
+    },
+    tx?: Prisma.TransactionClient
   ) {
+    const db = tx || prisma;
     // 1. Fetch related entities and organization to get timezone
     const [organization, vehicle, driver, route, schedule] = await Promise.all([
-      prisma.organization.findUnique({ where: { organizationId } }),
-      prisma.vehicle.findUnique({ where: { id: data.vehicleId, organizationId } }),
-      prisma.user.findUnique({ where: { id: data.driverId, organizationId, role: 'DRIVER' } }),
-      prisma.route.findUnique({ where: { id: data.routeId, organizationId, status: 'ACTIVE' } }),
-      prisma.schedule.findUnique({ where: { id: data.scheduleId, organizationId, isActive: true } }),
+      db.organization.findUnique({ where: { organizationId } }),
+      db.vehicle.findUnique({ where: { id: data.vehicleId, organizationId } }),
+      db.user.findUnique({ where: { id: data.driverId, organizationId, role: 'DRIVER' } }),
+      db.route.findUnique({ where: { id: data.routeId, organizationId, status: 'ACTIVE' } }),
+      db.schedule.findUnique({ where: { id: data.scheduleId, organizationId, isActive: true } }),
     ]);
 
     if (!organization) throw new NotFoundError('Organization not found');
@@ -44,31 +47,40 @@ export class TripAssignmentEngine {
     }
 
     // 3. Driver Availability
-    const driverTrip = await this.tripRepository.findAssignedTripByDriverAndDate(
-      data.driverId,
-      data.serviceDate,
-      organizationId
-    );
+    const driverTrip = await db.trip.findFirst({
+      where: {
+        driverId: data.driverId,
+        serviceDate: data.serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
     if (driverTrip) {
       throw new BadRequestError(`Driver is already assigned to a trip on ${data.serviceDate}`);
     }
 
     // 4. Bus Availability
-    const vehicleTrip = await this.tripRepository.findAssignedTripByVehicleAndDate(
-      data.vehicleId,
-      data.serviceDate,
-      organizationId
-    );
+    const vehicleTrip = await db.trip.findFirst({
+      where: {
+        vehicleId: data.vehicleId,
+        serviceDate: data.serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
     if (vehicleTrip) {
       throw new BadRequestError(`Vehicle is already assigned to a trip on ${data.serviceDate}`);
     }
 
     // 5. Schedule Uniqueness
-    const scheduleTrip = await this.tripRepository.findAssignedTripByScheduleAndDate(
-      data.scheduleId,
-      data.serviceDate,
-      organizationId
-    );
+    const scheduleTrip = await db.trip.findFirst({
+      where: {
+        scheduleId: data.scheduleId,
+        serviceDate: data.serviceDate,
+        organizationId,
+        status: { not: 'CANCELLED' },
+      },
+    });
     if (scheduleTrip) {
       throw new BadRequestError(`A trip is already assigned for this schedule on ${data.serviceDate}`);
     }

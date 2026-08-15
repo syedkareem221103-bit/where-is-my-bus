@@ -75,9 +75,8 @@ export class TripRepository {
   }
 
   async findLatestPing(tripId: string, organizationId: string): Promise<TripPing | null> {
-    // TripPing does not have organizationId in schema.prisma. For compile purposes, check tripId instead.
     return prisma.tripPing.findFirst({
-      where: { tripId },
+      where: { tripId, organizationId },
       orderBy: { timestamp: 'desc' },
     });
   }
@@ -86,6 +85,17 @@ export class TripRepository {
     return prisma.stop.findMany({
       where: { routeId, organizationId },
       orderBy: { sequenceOrder: 'asc' },
+    });
+  }
+
+  async findActiveTrips(organizationId: string) {
+    return prisma.trip.findMany({
+      where: {
+        organizationId,
+        status: {
+          in: ['STARTED', 'EN_ROUTE', 'AT_STOP', 'ACTIVE']
+        }
+      }
     });
   }
 }

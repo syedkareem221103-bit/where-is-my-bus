@@ -24,17 +24,26 @@ export class TripService {
   ) {
     const { TripAssignmentEngine } = await import('./trip.assignment.engine');
     const engine = new TripAssignmentEngine();
-    await engine.validateAssignment(organizationId, data);
 
-    return this.tripRepository.create({
-      organizationId,
-      vehicleId: data.vehicleId,
-      driverId: data.driverId,
-      routeId: data.routeId,
-      scheduleId: data.scheduleId,
-      serviceDate: data.serviceDate,
-      status: TripStatus.SCHEDULED,
+    return prisma.$transaction(async (tx) => {
+      await engine.validateAssignment(organizationId, data, tx);
+
+      return tx.trip.create({
+        data: {
+          organizationId,
+          vehicleId: data.vehicleId,
+          driverId: data.driverId,
+          routeId: data.routeId,
+          scheduleId: data.scheduleId,
+          serviceDate: data.serviceDate,
+          status: TripStatus.SCHEDULED,
+        }
+      });
     });
+  }
+
+  async getActiveTrips(organizationId: string) {
+    return this.tripRepository.findActiveTrips(organizationId);
   }
 
   async startTrip(
