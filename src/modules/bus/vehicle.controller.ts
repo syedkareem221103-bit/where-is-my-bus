@@ -9,8 +9,9 @@ export class VehicleController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const organizationId = req.user!.org;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const vehicle = await vehicleService.createVehicle(data, actorId, actorRole, organizationId);
+      const vehicle = await vehicleService.createVehicle(data, actorId, actorRole, organizationId, ipAddress);
 
       res.status(201).json({
         status: 'success',
@@ -63,8 +64,9 @@ export class VehicleController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const data = req.body;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const vehicle = await vehicleService.updateVehicle(id, organizationId, data, actorId, actorRole);
+      const vehicle = await vehicleService.updateVehicle(id, organizationId, data, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -81,8 +83,9 @@ export class VehicleController {
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await vehicleService.deleteVehicle(id, organizationId, actorId, actorRole);
+      await vehicleService.deleteVehicle(id, organizationId, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',

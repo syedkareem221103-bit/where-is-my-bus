@@ -2,12 +2,14 @@ import prisma from '../../config/database';
 import { Vehicle, Prisma, VehicleStatus } from '@prisma/client';
 
 export class VehicleRepository {
-  async create(data: Prisma.VehicleCreateInput): Promise<Vehicle> {
-    return prisma.vehicle.create({ data });
+  async create(data: Prisma.VehicleCreateInput, tx?: Prisma.TransactionClient): Promise<Vehicle> {
+    const db = tx || prisma;
+    return db.vehicle.create({ data });
   }
 
-  async findById(id: string, organizationId: string): Promise<Vehicle | null> {
-    return prisma.vehicle.findUnique({
+  async findById(id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<Vehicle | null> {
+    const db = tx || prisma;
+    return db.vehicle.findUnique({
       where: {
         id_organizationId: {
           id,
@@ -17,8 +19,9 @@ export class VehicleRepository {
     });
   }
 
-  async findByRegistrationNo(registrationNo: string): Promise<Vehicle | null> {
-    return prisma.vehicle.findUnique({
+  async findByRegistrationNo(registrationNo: string, tx?: Prisma.TransactionClient): Promise<Vehicle | null> {
+    const db = tx || prisma;
+    return db.vehicle.findUnique({
       where: { registrationNo },
     });
   }
@@ -53,8 +56,9 @@ export class VehicleRepository {
     return { data, total };
   }
 
-  async update(id: string, organizationId: string, data: Prisma.VehicleUpdateInput): Promise<Vehicle> {
-    return prisma.vehicle.update({
+  async update(id: string, organizationId: string, data: Prisma.VehicleUpdateInput, tx?: Prisma.TransactionClient): Promise<Vehicle> {
+    const db = tx || prisma;
+    return db.vehicle.update({
       where: {
         id_organizationId: {
           id,
