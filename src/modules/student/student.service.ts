@@ -4,54 +4,58 @@ import prisma from '../../config/database';
 import { Prisma, StudentStatus, UserRole } from '@prisma/client';
 
 export class StudentService {
-  async createStudent(data: any, actorId: string, actorRole: UserRole, organizationId: string) {
+  async createStudent(data: any, actorId: string, actorRole: UserRole, organizationId: string, ipAddress: string) {
     const existing = await studentRepository.findByStudentNumber(data.studentNumber, organizationId);
     if (existing) {
       throw new ConflictError(`Student with admission number '${data.studentNumber}' already exists in your organization`);
     }
 
-    const student = await studentRepository.create({
-      studentNumber: data.studentNumber,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      grade: data.grade,
-      status: data.status || StudentStatus.ACTIVE,
-      organization: { connect: { organizationId } },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const student = await studentRepository.create({
+        studentNumber: data.studentNumber,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        grade: data.grade,
+        status: data.status || StudentStatus.ACTIVE,
+        organization: { connect: { organizationId } },
+      }, tx);
 
-    if (data.parentId) {
-      await studentRepository.linkParent(student.id, data.parentId, organizationId, data.relationshipType);
-    }
+      if (data.parentId) {
+        await studentRepository.linkParent(student.id, data.parentId, organizationId, data.relationshipType, tx);
+      }
 
-    if (data.stopId) {
-      await studentRepository.assignStop(student.id, data.stopId, organizationId);
-    }
+      if (data.stopId) {
+        await studentRepository.assignStop(student.id, data.stopId, organizationId, tx);
+      }
 
-    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+      const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'STUDENT_CREATED',
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { studentId: student.id, studentNumber: student.studentNumber, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
-      },
-    });
-
-    if (data.stopId) {
-      await prisma.auditLog.create({
+      await tx.auditLog.create({
         data: {
-          action: 'STUDENT_ASSIGNED_ROUTE',
+          action: 'STUDENT_CREATED',
           userId: actorId,
           organizationId: actor!.organizationId,
-          metadata: { studentId: student.id, stopId: data.stopId, targetOrganizationId: organizationId },
-          ipAddress: '0.0.0.0',
+          metadata: { studentId: student.id, studentNumber: student.studentNumber, targetOrganizationId: organizationId },
+          ipAddress: ipAddress,
         },
       });
-    }
 
-    return this.getStudent(student.id, organizationId);
+      if (data.stopId) {
+        await tx.auditLog.create({
+          data: {
+            action: 'STUDENT_ASSIGNED_ROUTE',
+            userId: actorId,
+            organizationId: actor!.organizationId,
+            metadata: { studentId: student.id, stopId: data.stopId, targetOrganizationId: organizationId },
+            ipAddress: ipAddress,
+          },
+        });
+      }
+
+      return student;
+    });
+
+    return this.getStudent(result.id, organizationId);
   }
 
   async getStudents(organizationId: string, page: number, limit: number, status?: StudentStatus, search?: string) {
@@ -75,7 +79,7 @@ export class StudentService {
     return student;
   }
 
-  async updateStudent(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole) {
+  async updateStudent(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole, ipAddress: string) {
     const student = await this.getStudent(id, organizationId);
 
     // OPERATOR role restricted to status & assignments updates only
@@ -101,73 +105,79 @@ export class StudentService {
       ...(data.status && { status: data.status }),
     };
 
-    let updated = student;
-    if (Object.keys(updateData).length > 0) {
-      updated = await studentRepository.update(id, organizationId, updateData);
-    }
+    await prisma.$transaction(async (tx) => {
+      let updated = student;
+      if (Object.keys(updateData).length > 0) {
+        updated = await studentRepository.update(id, organizationId, updateData, tx);
+      }
 
-    if (data.parentId) {
-      await studentRepository.linkParent(id, data.parentId, organizationId, data.relationshipType);
-    }
+      if (data.parentId) {
+        await studentRepository.linkParent(id, data.parentId, organizationId, data.relationshipType, tx);
+      }
 
-    if (data.stopId) {
-      await studentRepository.assignStop(id, data.stopId, organizationId);
-    }
+      if (data.stopId) {
+        await studentRepository.assignStop(id, data.stopId, organizationId, tx);
+      }
 
-    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+      const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-    if (data.status && data.status !== student.status) {
-      await prisma.auditLog.create({
+      if (data.status && data.status !== student.status) {
+        await tx.auditLog.create({
+          data: {
+            action: 'STUDENT_STATUS_CHANGED',
+            userId: actorId,
+            organizationId: actor!.organizationId,
+            metadata: { studentId: id, oldStatus: student.status, newStatus: data.status, targetOrganizationId: organizationId },
+            ipAddress: ipAddress,
+          },
+        });
+      }
+
+      if (data.stopId) {
+        await tx.auditLog.create({
+          data: {
+            action: 'STUDENT_ASSIGNED_ROUTE',
+            userId: actorId,
+            organizationId: actor!.organizationId,
+            metadata: { studentId: id, stopId: data.stopId, targetOrganizationId: organizationId },
+            ipAddress: ipAddress,
+          },
+        });
+      }
+
+      await tx.auditLog.create({
         data: {
-          action: 'STUDENT_STATUS_CHANGED',
+          action: 'STUDENT_UPDATED',
           userId: actorId,
           organizationId: actor!.organizationId,
-          metadata: { studentId: id, oldStatus: student.status, newStatus: data.status, targetOrganizationId: organizationId },
-          ipAddress: '0.0.0.0',
+          metadata: { studentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
+          ipAddress: ipAddress,
         },
       });
-    }
-
-    if (data.stopId) {
-      await prisma.auditLog.create({
-        data: {
-          action: 'STUDENT_ASSIGNED_ROUTE',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { studentId: id, stopId: data.stopId, targetOrganizationId: organizationId },
-          ipAddress: '0.0.0.0',
-        },
-      });
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        action: 'STUDENT_UPDATED',
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { studentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
-        ipAddress: '0.0.0.0',
-      },
     });
 
     return this.getStudent(id, organizationId);
   }
 
-  async deleteStudent(id: string, organizationId: string, actorId: string, actorRole: UserRole) {
+  async deleteStudent(id: string, organizationId: string, actorId: string, actorRole: UserRole, ipAddress: string) {
     const student = await this.getStudent(id, organizationId);
 
-    const deleted = await studentRepository.update(id, organizationId, { status: StudentStatus.INACTIVE });
+    const deleted = await prisma.$transaction(async (tx) => {
+      const deletedStudent = await studentRepository.update(id, organizationId, { status: StudentStatus.INACTIVE }, tx);
 
-    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+      const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'STUDENT_DELETED',
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { studentId: id, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
-      },
+      await tx.auditLog.create({
+        data: {
+          action: 'STUDENT_DELETED',
+          userId: actorId,
+          organizationId: actor!.organizationId,
+          metadata: { studentId: id, targetOrganizationId: organizationId },
+          ipAddress: ipAddress,
+        },
+      });
+
+      return deletedStudent;
     });
 
     return deleted;

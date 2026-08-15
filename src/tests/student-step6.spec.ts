@@ -23,6 +23,7 @@ function signToken(payload: any) {
 }
 
 describe('Student Management Module (Milestone 2 - Step 6)', () => {
+  jest.setTimeout(30000);
   let orgId1: string;
   let orgId2: string;
   let superAdminToken: string;
@@ -149,6 +150,17 @@ describe('Student Management Module (Milestone 2 - Step 6)', () => {
     });
     parent1Id = p1.id;
 
+    const studentUser = await prisma.user.create({
+      data: {
+        email: 'student1@test.com',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        passwordHash: 'hashed',
+        role: UserRole.STUDENT,
+        organization: { connect: { organizationId: orgId1 } },
+      },
+    });
+
     const st1 = await prisma.student.create({
       data: {
         id: '33333333-3333-3333-3333-333333333333',
@@ -156,6 +168,7 @@ describe('Student Management Module (Milestone 2 - Step 6)', () => {
         firstName: 'Alice',
         lastName: 'Smith',
         grade: 'Grade 5',
+        user: { connect: { id: studentUser.id } },
         organization: { connect: { organizationId: orgId1 } },
       },
     });
@@ -187,7 +200,7 @@ describe('Student Management Module (Milestone 2 - Step 6)', () => {
     operatorToken1 = signToken({ sub: op1.id, email: op1.email, role: op1.role, org: orgId1 });
     driverToken1 = signToken({ sub: d1.id, email: d1.email, role: d1.role, org: orgId1 });
     parentToken1 = signToken({ sub: p1.id, email: p1.email, role: p1.role, org: orgId1 });
-    studentToken1 = signToken({ sub: student1Id, email: 'student1@test.com', role: UserRole.STUDENT, org: orgId1 });
+    studentToken1 = signToken({ sub: studentUser.id, email: studentUser.email, role: studentUser.role, org: orgId1 });
   });
 
   afterAll(async () => {

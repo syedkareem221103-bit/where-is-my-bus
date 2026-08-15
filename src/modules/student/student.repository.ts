@@ -2,8 +2,9 @@ import prisma from '../../config/database';
 import { Student, Prisma, StudentStatus } from '@prisma/client';
 
 export class StudentRepository {
-  async create(data: Prisma.StudentCreateInput): Promise<Student> {
-    return prisma.student.create({
+  async create(data: Prisma.StudentCreateInput, tx?: Prisma.TransactionClient): Promise<Student> {
+    const client = tx || prisma;
+    return client.student.create({
       data,
       include: {
         parentChildren: { include: { parent: true } },
@@ -12,8 +13,9 @@ export class StudentRepository {
     });
   }
 
-  async findById(id: string, organizationId: string): Promise<any | null> {
-    return prisma.student.findUnique({
+  async findById(id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<any | null> {
+    const client = tx || prisma;
+    return client.student.findUnique({
       where: {
         id_organizationId: {
           id,
@@ -27,8 +29,9 @@ export class StudentRepository {
     });
   }
 
-  async findByStudentNumber(studentNumber: string, organizationId: string): Promise<Student | null> {
-    return prisma.student.findUnique({
+  async findByStudentNumber(studentNumber: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<Student | null> {
+    const client = tx || prisma;
+    return client.student.findUnique({
       where: {
         organizationId_studentNumber: {
           organizationId,
@@ -77,8 +80,9 @@ export class StudentRepository {
     return { data, total };
   }
 
-  async update(id: string, organizationId: string, data: Prisma.StudentUpdateInput): Promise<any> {
-    return prisma.student.update({
+  async update(id: string, organizationId: string, data: Prisma.StudentUpdateInput, tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.student.update({
       where: {
         id_organizationId: {
           id,
@@ -93,8 +97,9 @@ export class StudentRepository {
     });
   }
 
-  async linkParent(studentId: string, parentId: string, organizationId: string, relationshipType = 'PARENT'): Promise<any> {
-    return prisma.parentChild.upsert({
+  async linkParent(studentId: string, parentId: string, organizationId: string, relationshipType = 'PARENT', tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.parentChild.upsert({
       where: {
         parentId_studentId: {
           parentId,
@@ -113,8 +118,9 @@ export class StudentRepository {
     });
   }
 
-  async assignStop(studentId: string, stopId: string, organizationId: string): Promise<any> {
-    return prisma.studentStop.upsert({
+  async assignStop(studentId: string, stopId: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.studentStop.upsert({
       where: {
         studentId_stopId: {
           studentId,

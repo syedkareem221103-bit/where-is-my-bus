@@ -11,8 +11,9 @@ export class StudentController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const organizationId = req.user!.org;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const student = await studentService.createStudent(data, actorId, actorRole, organizationId);
+      const student = await studentService.createStudent(data, actorId, actorRole, organizationId, ipAddress);
 
       res.status(201).json({
         status: 'success',
@@ -49,8 +50,10 @@ export class StudentController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
 
+      const student = await studentService.getStudent(id, organizationId);
+
       // STUDENT role can only fetch their own profile
-      if (actorRole === UserRole.STUDENT && id !== actorId) {
+      if (actorRole === UserRole.STUDENT && student.userId !== actorId) {
         throw new ForbiddenError('You can only access your own student profile');
       }
 
@@ -69,8 +72,6 @@ export class StudentController {
         }
       }
 
-      const student = await studentService.getStudent(id, organizationId);
-
       res.status(200).json({
         status: 'success',
         data: { student },
@@ -87,8 +88,9 @@ export class StudentController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const data = req.body;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const student = await studentService.updateStudent(id, organizationId, data, actorId, actorRole);
+      const student = await studentService.updateStudent(id, organizationId, data, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -105,8 +107,9 @@ export class StudentController {
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await studentService.deleteStudent(id, organizationId, actorId, actorRole);
+      await studentService.deleteStudent(id, organizationId, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',

@@ -81,6 +81,7 @@ model User {
   reportedEmergencies Emergency[]                  @relation("EmergencyReporter")
   emergencyHistories  EmergencyHistory[]
   reportSubscriptions ReportSubscription[]
+  Student             Student?
 
   @@unique([id, organizationId])
   @@index([organizationId, email])
@@ -123,6 +124,8 @@ model Student {
   lastName        String
   grade           String?
   status          StudentStatus     @default(ACTIVE)
+  userId          String?           @unique
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   organization    Organization      @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
@@ -607,15 +610,15 @@ model ReportExecution {
 }
 
 model Geofence {
-  id             String         @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   name           String
-  type           GeofenceType   // SCHOOL, STOP, CORRIDOR, RESTRICTED, DEPOT, CUSTOM
-  geometry       Json           // Strict GeoJSON format
-  isActive       Boolean        @default(true)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  organization   Organization   @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  type           GeofenceType // SCHOOL, STOP, CORRIDOR, RESTRICTED, DEPOT, CUSTOM
+  geometry       Json // Strict GeoJSON format
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
   alerts         SmartAlert[]
 
   @@index([organizationId, type])
@@ -631,21 +634,21 @@ enum GeofenceType {
 }
 
 model SmartAlert {
-  id             String         @id @default(uuid())
+  id             String        @id @default(uuid())
   organizationId String
   tripId         String?
   geofenceId     String?
-  category       AlertCategory  // ROUTE_DEVIATION, SPEEDING, UNAUTHORIZED_AREA, MISSED_STOP, IDLE, ENTER, EXIT
-  priority       AlertPriority  // LOW, MEDIUM, HIGH, CRITICAL
-  status         AlertStatus    @default(ACTIVE)
+  category       AlertCategory // ROUTE_DEVIATION, SPEEDING, UNAUTHORIZED_AREA, MISSED_STOP, IDLE, ENTER, EXIT
+  priority       AlertPriority // LOW, MEDIUM, HIGH, CRITICAL
+  status         AlertStatus   @default(ACTIVE)
   message        String
-  metadata       Json?          // e.g., { actualSpeed: 85, limit: 60 }
-  createdAt      DateTime       @default(now())
+  metadata       Json? // e.g., { actualSpeed: 85, limit: 60 }
+  createdAt      DateTime      @default(now())
   resolvedAt     DateTime?
-  
-  organization   Organization   @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
-  trip           Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
-  geofence       Geofence?      @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
+
+  organization Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
+  trip         Trip?        @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  geofence     Geofence?    @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
   @@index([tripId])
@@ -675,15 +678,15 @@ enum AlertStatus {
 }
 
 model SystemHealthSnapshot {
-  id              String   @id @default(uuid())
-  timestamp       DateTime @default(now())
-  cpuUsage        Float
-  memoryUsage     Float
-  activeSockets   Int
-  activeTrips     Int
-  errorRate       Float
-  status          HealthStatus
-  metricsPayload  Json     // Granular metrics: queue sizes, DB latency, etc.
+  id             String       @id @default(uuid())
+  timestamp      DateTime     @default(now())
+  cpuUsage       Float
+  memoryUsage    Float
+  activeSockets  Int
+  activeTrips    Int
+  errorRate      Float
+  status         HealthStatus
+  metricsPayload Json // Granular metrics: queue sizes, DB latency, etc.
 
   @@index([timestamp])
 }
