@@ -6,9 +6,10 @@ export type DriverWithLicense = User & { driverLicense: DriverLicense | null };
 export class DriverRepository {
   async createDriverWithLicense(
     userData: Omit<Prisma.UserCreateInput, 'role'>,
-    licenseData: { licenseNumber: string; expiryDate: Date; licenseClass: string }
+    licenseData: { licenseNumber: string; expiryDate: Date; licenseClass: string },
+    txClient?: Prisma.TransactionClient
   ): Promise<DriverWithLicense> {
-    return prisma.$transaction(async (tx) => {
+    const execute = async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.create({
         data: {
           ...userData,
@@ -27,11 +28,14 @@ export class DriverRepository {
       });
 
       return { ...user, driverLicense: license };
-    });
+    };
+
+    return txClient ? execute(txClient) : prisma.$transaction(execute);
   }
 
-  async findById(id: string, organizationId: string): Promise<DriverWithLicense | null> {
-    return prisma.user.findFirst({
+  async findById(id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<DriverWithLicense | null> {
+    const db = tx || prisma;
+    return db.user.findFirst({
       where: {
         id,
         organizationId,
@@ -43,14 +47,16 @@ export class DriverRepository {
     });
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({
+  async findByEmail(email: string, tx?: Prisma.TransactionClient): Promise<User | null> {
+    const db = tx || prisma;
+    return db.user.findUnique({
       where: { email },
     });
   }
 
-  async findByLicenseNumber(licenseNumber: string): Promise<DriverLicense | null> {
-    return prisma.driverLicense.findUnique({
+  async findByLicenseNumber(licenseNumber: string, tx?: Prisma.TransactionClient): Promise<DriverLicense | null> {
+    const db = tx || prisma;
+    return db.driverLicense.findUnique({
       where: { licenseNumber },
     });
   }
@@ -98,9 +104,10 @@ export class DriverRepository {
     id: string,
     organizationId: string,
     userData: Prisma.UserUpdateInput,
-    licenseData?: Prisma.DriverLicenseUpdateInput
+    licenseData?: Prisma.DriverLicenseUpdateInput,
+    txClient?: Prisma.TransactionClient
   ): Promise<DriverWithLicense> {
-    return prisma.$transaction(async (tx) => {
+    const execute = async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.update({
         where: {
           id_organizationId: { id, organizationId },
@@ -126,7 +133,9 @@ export class DriverRepository {
       }
 
       return { ...user, driverLicense: license };
-    });
+    };
+
+    return txClient ? execute(txClient) : prisma.$transaction(execute);
   }
 }
 

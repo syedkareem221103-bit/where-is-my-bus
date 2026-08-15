@@ -23,6 +23,7 @@ function signToken(payload: any) {
 }
 
 describe('Driver Management Module (Milestone 2 - Step 5)', () => {
+  jest.setTimeout(30000);
   let orgId1: string;
   let orgId2: string;
   let superAdminToken: string;

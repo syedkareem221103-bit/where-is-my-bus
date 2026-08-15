@@ -16,8 +16,9 @@ export class DriverController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const organizationId = req.user!.org;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const driver = await driverService.createDriver(data, actorId, actorRole, organizationId);
+      const driver = await driverService.createDriver(data, actorId, actorRole, organizationId, ipAddress);
 
       res.status(201).json({
         status: 'success',
@@ -80,8 +81,9 @@ export class DriverController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const data = req.body;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const driver = await driverService.updateDriver(id, organizationId, data, actorId, actorRole);
+      const driver = await driverService.updateDriver(id, organizationId, data, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -98,8 +100,9 @@ export class DriverController {
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await driverService.deleteDriver(id, organizationId, actorId, actorRole);
+      await driverService.deleteDriver(id, organizationId, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
