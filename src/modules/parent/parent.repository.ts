@@ -2,8 +2,9 @@ import prisma from '../../config/database';
 import { User, Prisma, UserStatus, UserRole } from '@prisma/client';
 
 export class ParentRepository {
-  async create(data: Prisma.UserCreateInput): Promise<User> {
-    return prisma.user.create({
+  async create(data: Prisma.UserCreateInput, tx?: Prisma.TransactionClient): Promise<User> {
+    const client = tx || prisma;
+    return client.user.create({
       data: {
         ...data,
         role: UserRole.PARENT,
@@ -14,8 +15,9 @@ export class ParentRepository {
     });
   }
 
-  async findById(id: string, organizationId: string): Promise<any | null> {
-    return prisma.user.findFirst({
+  async findById(id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<any | null> {
+    const client = tx || prisma;
+    return client.user.findFirst({
       where: {
         id,
         organizationId,
@@ -27,11 +29,11 @@ export class ParentRepository {
     });
   }
 
-  async findByEmail(email: string, organizationId: string): Promise<User | null> {
-    return prisma.user.findFirst({
+  async findByEmail(email: string, tx?: Prisma.TransactionClient): Promise<User | null> {
+    const client = tx || prisma;
+    return client.user.findFirst({
       where: {
         email,
-        organizationId,
       },
     });
   }
@@ -76,8 +78,9 @@ export class ParentRepository {
     return { data, total };
   }
 
-  async update(id: string, organizationId: string, data: Prisma.UserUpdateInput): Promise<any> {
-    return prisma.user.update({
+  async update(id: string, organizationId: string, data: Prisma.UserUpdateInput, tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.user.update({
       where: {
         id_organizationId: {
           id,
@@ -91,8 +94,9 @@ export class ParentRepository {
     });
   }
 
-  async delete(id: string, organizationId: string): Promise<any> {
-    return prisma.user.update({
+  async delete(id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.user.update({
       where: {
         id_organizationId: {
           id,
@@ -105,8 +109,9 @@ export class ParentRepository {
     });
   }
 
-  async linkStudent(parentId: string, studentId: string, organizationId: string, relationshipType = 'PARENT'): Promise<any> {
-    return prisma.parentChild.upsert({
+  async linkStudent(parentId: string, studentId: string, organizationId: string, relationshipType = 'PARENT', tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.parentChild.upsert({
       where: {
         parentId_studentId: {
           parentId,
@@ -125,8 +130,9 @@ export class ParentRepository {
     });
   }
 
-  async unlinkStudent(parentId: string, studentId: string, organizationId: string): Promise<any> {
-    return prisma.parentChild.delete({
+  async unlinkStudent(parentId: string, studentId: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<any> {
+    const client = tx || prisma;
+    return client.parentChild.delete({
       where: {
         parentId_studentId: {
           parentId,

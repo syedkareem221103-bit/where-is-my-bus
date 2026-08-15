@@ -10,8 +10,9 @@ export class ParentController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const organizationId = req.user!.org;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      const parent = await parentService.createParent(data, actorId, actorRole, organizationId);
+      const parent = await parentService.createParent(data, actorId, actorRole, organizationId, ipAddress);
 
       const { passwordHash, ...safeParent } = parent;
 
@@ -79,12 +80,13 @@ export class ParentController {
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
       const data = req.body;
+      const ipAddress = req.ip || '0.0.0.0';
 
       if (actorRole === UserRole.PARENT && id !== actorId) {
         throw new ForbiddenError('You can only update your own profile');
       }
 
-      const parent = await parentService.updateParent(id, organizationId, data, actorId, actorRole);
+      const parent = await parentService.updateParent(id, organizationId, data, actorId, actorRole, ipAddress);
       
       const { passwordHash, ...safeParent } = parent;
 
@@ -103,8 +105,9 @@ export class ParentController {
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
       const actorRole = req.user!.role;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await parentService.deleteParent(id, organizationId, actorId, actorRole);
+      await parentService.deleteParent(id, organizationId, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -121,8 +124,9 @@ export class ParentController {
       const { studentId, relationshipType } = req.body;
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await parentService.linkStudent(id, organizationId, studentId, relationshipType, actorId);
+      await parentService.linkStudent(id, organizationId, studentId, relationshipType, actorId, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -138,8 +142,9 @@ export class ParentController {
       const { id, studentId } = req.params;
       const organizationId = req.user!.org;
       const actorId = req.user!.sub;
+      const ipAddress = req.ip || '0.0.0.0';
 
-      await parentService.unlinkStudent(id, organizationId, studentId, actorId);
+      await parentService.unlinkStudent(id, organizationId, studentId, actorId, ipAddress);
 
       res.status(200).json({
         status: 'success',

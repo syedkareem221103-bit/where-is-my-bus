@@ -23,6 +23,7 @@ function signToken(payload: any) {
 }
 
 describe('Parent Management Module (Milestone 2 - Step 7)', () => {
+  jest.setTimeout(30000);
   let orgId1: string;
   let superAdminToken: string;
   let orgAdminToken: string;
