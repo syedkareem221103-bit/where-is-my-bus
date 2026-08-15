@@ -448,7 +448,7 @@ model AuditLog {
   ipAddress      String
   timestamp      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Restrict)
-  user           User         @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
 }
 
 model DeviceSession {

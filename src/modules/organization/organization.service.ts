@@ -4,24 +4,24 @@ import prisma from '../../config/database';
 import { Prisma, Organization } from '@prisma/client';
 
 export class OrganizationService {
-  async createOrganization(data: Prisma.OrganizationCreateInput, adminId: string): Promise<Organization> {
+  async createOrganization(data: Prisma.OrganizationCreateInput, adminId: string, ipAddress: string): Promise<Organization> {
     const existing = await organizationRepository.findByOrganizationId(data.organizationId);
     if (existing) {
       throw new ConflictError('Organization with this ID already exists');
     }
 
-    const org = await organizationRepository.create(data);
-
-    // Create Audit Log
-    await prisma.auditLog.create({
-      data: {
-        action: 'ORGANIZATION_CREATED',
-        userId: adminId,
-        organizationId: org.id,
-        metadata: { name: org.name, type: org.type },
-        ipAddress: '0.0.0.0', // Service layer default
-      },
-    });
+    const [org] = await prisma.$transaction([
+      prisma.organization.create({ data }),
+      prisma.auditLog.create({
+        data: {
+          action: 'ORGANIZATION_CREATED',
+          userId: adminId,
+          organizationId: data.organizationId,
+          metadata: { name: data.name, type: data.type },
+          ipAddress,
+        },
+      })
+    ]);
 
     return org;
   }
@@ -47,38 +47,46 @@ export class OrganizationService {
     return org;
   }
 
-  async updateOrganization(id: string, data: Prisma.OrganizationUpdateInput, userId: string): Promise<Organization> {
+  async updateOrganization(id: string, data: Prisma.OrganizationUpdateInput, userId: string, ipAddress: string): Promise<Organization> {
     const org = await this.getOrganization(id);
 
-    const updated = await organizationRepository.update(id, data);
-
-    await prisma.auditLog.create({
-      data: {
-        action: 'ORGANIZATION_UPDATED',
-        userId,
-        organizationId: org.id,
-        metadata: JSON.parse(JSON.stringify(data)),
-        ipAddress: '0.0.0.0',
-      },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.organization.update({
+        where: { id },
+        data,
+      }),
+      prisma.auditLog.create({
+        data: {
+          action: 'ORGANIZATION_UPDATED',
+          userId,
+          organizationId: org.organizationId,
+          metadata: JSON.parse(JSON.stringify(data)),
+          ipAddress,
+        },
+      })
+    ]);
 
     return updated;
   }
 
-  async deleteOrganization(id: string, userId: string): Promise<Organization> {
+  async deleteOrganization(id: string, userId: string, ipAddress: string): Promise<Organization> {
     const org = await this.getOrganization(id);
 
-    const deleted = await organizationRepository.update(id, { status: 'DEACTIVATED' });
-
-    await prisma.auditLog.create({
-      data: {
-        action: 'ORGANIZATION_DEACTIVATED',
-        userId,
-        organizationId: org.id,
-        metadata: { previousStatus: org.status },
-        ipAddress: '0.0.0.0',
-      },
-    });
+    const [deleted] = await prisma.$transaction([
+      prisma.organization.update({
+        where: { id },
+        data: { status: 'DEACTIVATED' }
+      }),
+      prisma.auditLog.create({
+        data: {
+          action: 'ORGANIZATION_DEACTIVATED',
+          userId,
+          organizationId: org.organizationId,
+          metadata: { previousStatus: org.status },
+          ipAddress,
+        },
+      })
+    ]);
 
     return deleted;
   }

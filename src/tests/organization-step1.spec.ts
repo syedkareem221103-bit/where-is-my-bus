@@ -59,6 +59,7 @@ jest.mock('../config/database', () => ({
   auditLog: {
     create: jest.fn(),
   },
+  $transaction: jest.fn((promises) => Promise.all(promises)),
 }));
 
 describe('Milestone 2 - Step 1: Organization Management Module', () => {
@@ -83,6 +84,7 @@ describe('Milestone 2 - Step 1: Organization Management Module', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.status).toBe('success');
+      expect(prisma.$transaction).toHaveBeenCalled();
       expect(prisma.organization.create).toHaveBeenCalled();
       expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ action: 'ORGANIZATION_CREATED' })
@@ -154,7 +156,7 @@ describe('Milestone 2 - Step 1: Organization Management Module', () => {
 
   describe('GET /api/v1/organizations/:id (Single Fetch & Tenant Isolation)', () => {
     it('allows SUPER_ADMIN to fetch any organization', async () => {
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', organizationId: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
 
       const response = await request(testApp)
         .get('/api/v1/organizations/123e4567-e89b-12d3-a456-426614174000')
@@ -165,7 +167,7 @@ describe('Milestone 2 - Step 1: Organization Management Module', () => {
     });
 
     it('allows ORG_ADMIN to fetch their OWN organization', async () => {
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', organizationId: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
 
       const response = await request(testApp)
         .get('/api/v1/organizations/123e4567-e89b-12d3-a456-426614174000')
@@ -188,7 +190,7 @@ describe('Milestone 2 - Step 1: Organization Management Module', () => {
 
   describe('PATCH /api/v1/organizations/:id (Update)', () => {
     it('allows ORG_ADMIN to update their own organization', async () => {
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', organizationId: '123e4567-e89b-12d3-a456-426614174000', name: 'Target', status: 'ACTIVE' });
       (prisma.organization.update as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', name: 'Updated' });
 
       const response = await request(testApp)
@@ -205,7 +207,7 @@ describe('Milestone 2 - Step 1: Organization Management Module', () => {
 
   describe('DELETE /api/v1/organizations/:id (Soft Delete)', () => {
     it('allows SUPER_ADMIN to soft delete organization', async () => {
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', status: 'ACTIVE' });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', organizationId: '123e4567-e89b-12d3-a456-426614174000', status: 'ACTIVE' });
       (prisma.organization.update as jest.Mock).mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000', status: 'DEACTIVATED' });
 
       const response = await request(testApp)

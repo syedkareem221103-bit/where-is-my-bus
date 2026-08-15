@@ -93,7 +93,8 @@ export const requireOwnership = (resourceType: 'user' | 'student' | 'trip' | 'or
         }
       } else if (resourceType === 'organization') {
         // Organization ownership: req.user.org === targetId
-        if (req.user.org !== resourceId) {
+        const org = await prisma.organization.findUnique({ where: { id: resourceId } });
+        if (!org || org.organizationId !== req.user.org) {
           await auditAuthorizationFailure(req, `User ${req.user.sub} attempted to access cross-tenant organization ${resourceId}`);
           return next(new ForbiddenError('You do not have permission to access this organization resource'));
         }

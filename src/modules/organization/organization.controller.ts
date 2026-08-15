@@ -1,13 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { organizationService } from './organization.service';
+import { ForbiddenError } from '../../errors';
 
 export class OrganizationController {
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const data = req.body;
       const adminId = req.user!.sub;
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || '0.0.0.0';
 
-      const organization = await organizationService.createOrganization(data, adminId);
+      const organization = await organizationService.createOrganization(data, adminId, ipAddress);
 
       res.status(201).json({
         status: 'success',
@@ -53,8 +55,13 @@ export class OrganizationController {
       const { id } = req.params;
       const data = req.body;
       const userId = req.user!.sub;
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || '0.0.0.0';
 
-      const organization = await organizationService.updateOrganization(id, data, userId);
+      if (data.status && req.user!.role !== 'SUPER_ADMIN') {
+        throw new ForbiddenError('Only SUPER_ADMIN can change organization status');
+      }
+
+      const organization = await organizationService.updateOrganization(id, data, userId, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -69,8 +76,9 @@ export class OrganizationController {
     try {
       const { id } = req.params;
       const userId = req.user!.sub;
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || '0.0.0.0';
 
-      await organizationService.deleteOrganization(id, userId);
+      await organizationService.deleteOrganization(id, userId, ipAddress);
 
       res.status(200).json({
         status: 'success',
