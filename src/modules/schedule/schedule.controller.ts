@@ -7,18 +7,21 @@ export class ScheduleController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = req.user!.organizationId || req.user!.org;
+      const actorId = req.user!.sub || req.user!.id;
+      const ipAddress = req.ip || '127.0.0.1';
+
       if (!organizationId) {
         throw new BadRequestError('Only organization members can create schedules');
       }
 
       const { routeId, name, cutoffTime, operatingDays } = req.body;
-      const schedule = await this.scheduleService.createSchedule(organizationId, {
-        routeId,
-        name,
-        cutoffTime,
-        operatingDays,
-      });
+      const schedule = await this.scheduleService.createSchedule(
+        organizationId, 
+        { routeId, name, cutoffTime, operatingDays },
+        actorId,
+        ipAddress
+      );
 
       res.status(201).json({
         status: 'success',
@@ -32,7 +35,7 @@ export class ScheduleController {
 
   getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = req.user!.organizationId || req.user!.org;
       if (!organizationId) {
         throw new BadRequestError('Only organization members can view schedules');
       }
@@ -53,7 +56,7 @@ export class ScheduleController {
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = req.user!.organizationId || req.user!.org;
       const { id } = req.params;
 
       if (!organizationId) {
@@ -73,7 +76,9 @@ export class ScheduleController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = req.user!.organizationId || req.user!.org;
+      const actorId = req.user!.sub || req.user!.id;
+      const ipAddress = req.ip || '127.0.0.1';
       const { id } = req.params;
 
       if (!organizationId) {
@@ -81,12 +86,13 @@ export class ScheduleController {
       }
 
       const { name, cutoffTime, operatingDays, isActive } = req.body;
-      const schedule = await this.scheduleService.updateSchedule(organizationId, id, {
-        name,
-        cutoffTime,
-        operatingDays,
-        isActive,
-      });
+      const schedule = await this.scheduleService.updateSchedule(
+        organizationId, 
+        id, 
+        { name, cutoffTime, operatingDays, isActive },
+        actorId,
+        ipAddress
+      );
 
       res.status(200).json({
         status: 'success',
@@ -100,18 +106,20 @@ export class ScheduleController {
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = req.user!.organizationId || req.user!.org;
+      const actorId = req.user!.sub || req.user!.id;
+      const ipAddress = req.ip || '127.0.0.1';
       const { id } = req.params;
 
       if (!organizationId) {
         throw new BadRequestError('Only organization members can delete schedules');
       }
 
-      await this.scheduleService.deleteSchedule(organizationId, id);
+      await this.scheduleService.deleteSchedule(organizationId, id, actorId, ipAddress);
 
       res.status(200).json({
         status: 'success',
-        message: 'Schedule deleted successfully',
+        message: 'Schedule deactivated successfully',
       });
     } catch (error) {
       next(error);

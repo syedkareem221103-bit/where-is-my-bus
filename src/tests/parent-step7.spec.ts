@@ -118,6 +118,7 @@ describe('Parent Management Module (Milestone 2 - Step 7)', () => {
     await prisma.parentChild.deleteMany();
     await prisma.student.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.route.deleteMany();
     await prisma.organization.deleteMany();
     await prisma.$disconnect();
   });
