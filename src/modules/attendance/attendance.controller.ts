@@ -7,19 +7,22 @@ export class AttendanceController {
 
   submit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.organizationId;
-      const callerId = req.user!.id;
+      const organizationId = req.user!.organizationId || req.user!.org;
+      const callerId = req.user!.id || req.user!.sub;
       const callerRole = req.user!.role;
 
       if (!organizationId) {
         throw new BadRequestError('Only organization members can submit attendance');
       }
 
-      const { studentId, date, status } = req.body;
+      const { studentId, scheduleId, date, status } = req.body;
+      const ipAddress = req.ip || '127.0.0.1';
       const record = await this.attendanceService.submitAttendance(organizationId, callerId, callerRole, {
         studentId,
+        scheduleId,
         date,
         status,
+        ipAddress,
       });
 
       res.status(200).json({
@@ -34,9 +37,14 @@ export class AttendanceController {
 
   getDaily = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const organizationId = req.user!.organizationId || req.user!.org;
+      const date = req.query.date as string;
+
+      const records = await this.attendanceService.getDailyAttendance(organizationId, date);
+
       res.status(200).json({
         status: 'success',
-        data: { records: [] },
+        data: { records },
       });
     } catch (error) {
       next(error);

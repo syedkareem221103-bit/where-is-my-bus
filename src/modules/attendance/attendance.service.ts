@@ -14,32 +14,37 @@ export class AttendanceService {
     callerRole: UserRole,
     data: {
       studentId?: string;
+      scheduleId?: string;
       date: string; // YYYY-MM-DD
       status: AttendanceStatus;
+      ipAddress: string;
     }
   ) {
     let targetStudentId = data.studentId || '';
 
     // 1. Determine and authorize the student target
     if (callerRole === UserRole.STUDENT) {
-      targetStudentId = callerId; // Students can only submit for themselves
+      // Find the student record associated with this user
+      const studentProfile = await prisma.student.findUnique({
+        where: { userId: callerId },
+      });
+      if (!studentProfile) {
+        throw new NotFoundError('Student profile not found for your account');
+      }
+      targetStudentId = studentProfile.id;
     }
 
     if (!targetStudentId) {
       throw new BadRequestError('Student ID is required');
     }
 
-    // Fetch the target student user
-    const student = await prisma.user.findUnique({
+    // Fetch the target student
+    const student = await prisma.student.findUnique({
       where: { id: targetStudentId },
     });
 
     if (!student || student.organizationId !== organizationId) {
       throw new NotFoundError('Student not found in your organization');
-    }
-
-    if (student.role !== UserRole.STUDENT) {
-      throw new BadRequestError('Attendance can only be logged for student accounts');
     }
 
     // If caller is a Parent, verify they are parent of the student
@@ -57,23 +62,64 @@ export class AttendanceService {
       }
     }
 
-    // 2. Perform stub/upsert
-    const record = await this.attendanceRepository.upsert(
-      targetStudentId,
-      data.date,
-      data.status,
-      callerId
-    );
+    // 2. Determine schedules
+    let schedulesToUpdate: string[] = [];
+    if (data.scheduleId) {
+      schedulesToUpdate.push(data.scheduleId);
+    } else {
+      schedulesToUpdate = await this.attendanceRepository.findSchedulesForStudent(organizationId, targetStudentId);
+      if (schedulesToUpdate.length === 0) {
+        throw new BadRequestError('Student has no active schedules assigned');
+      }
+    }
 
-    // 3. Log Audit Activity
+    // 3. Verify locks and perform upserts
+    const updatedRecords: any[] = [];
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const scheduleId of schedulesToUpdate) {
+          // Check if existing record is locked
+          const existing = await tx.dailyAttendance.findUnique({
+            where: {
+              scheduleId_studentId_date: { scheduleId, studentId: targetStudentId, date: data.date }
+            }
+          });
+          
+          if (existing && existing.isLocked) {
+            throw new ForbiddenError(`Attendance for schedule ${scheduleId} is locked and cannot be modified`);
+          }
+
+          const record = await this.attendanceRepository.upsert(
+            organizationId,
+            scheduleId,
+            targetStudentId,
+            data.date,
+            data.status,
+            callerId,
+            tx
+          );
+          updatedRecords.push(record);
+        }
+      });
+    } catch (error: any) {
+      if (error instanceof ForbiddenError) throw error;
+      throw new Error('Failed to save attendance records: ' + error.message);
+    }
+
+    // 4. Log Audit Activity
     await this.auditService.log({
       organizationId,
       userId: callerId,
       action: 'ATTENDANCE_LOG',
-      details: { studentId: targetStudentId, date: data.date, status: data.status },
+      details: { studentId: targetStudentId, schedules: schedulesToUpdate, date: data.date, status: data.status },
+      ipAddress: data.ipAddress
     });
 
-    return record;
+    return updatedRecords;
+  }
+
+  async getDailyAttendance(organizationId: string, date: string) {
+    return this.attendanceRepository.findByOrgAndDate(organizationId, date);
   }
 }
 export default AttendanceService;
