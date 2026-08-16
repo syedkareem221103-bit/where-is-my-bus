@@ -5,8 +5,8 @@ export const createUserSchema = z.object({
   body: z.object({
     email: z.string().email(),
     password: z.string().min(8, 'Password must be at least 8 characters long'),
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
+    firstName: z.string().min(1, 'First name is required').max(100, 'First name is too long'),
+    lastName: z.string().min(1, 'Last name is required').max(100, 'Last name is too long'),
     role: z.nativeEnum(UserRole),
   }),
 });
@@ -16,8 +16,8 @@ export const updateUserSchema = z.object({
     id: z.string().optional(), // uuid or 'me' (optional for /me route)
   }),
   body: z.object({
-    firstName: z.string().min(1).optional(),
-    lastName: z.string().min(1).optional(),
+    firstName: z.string().min(1).max(100).optional(),
+    lastName: z.string().min(1).max(100).optional(),
     status: z.nativeEnum(UserStatus).optional(),
     role: z.nativeEnum(UserRole).optional(),
   }),

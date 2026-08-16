@@ -24,28 +24,30 @@ export class UserService {
     const salt = await bcryptjs.genSalt(10);
     const passwordHash = await bcryptjs.hash(data.password, salt);
 
-    const user = await userRepository.create({
-      email: data.email,
-      passwordHash,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      role: data.role,
-      organization: { connect: { organizationId } }
-    });
-
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
-    
-    await prisma.auditLog.create({
-      data: {
-        action: 'USER_CREATED',
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, role: user.role },
-        ipAddress: '0.0.0.0',
-      },
-    });
 
-    return user;
+    return prisma.$transaction(async (tx) => {
+      const user = await userRepository.create({
+        email: data.email,
+        passwordHash,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        organization: { connect: { organizationId } }
+      }, tx);
+
+      await tx.auditLog.create({
+        data: {
+          action: 'USER_CREATED',
+          userId: actorId,
+          organizationId: actor!.organizationId,
+          metadata: { targetUserId: user.id, targetOrganizationId: organizationId, role: user.role },
+          ipAddress: '0.0.0.0',
+        },
+      });
+
+      return user;
+    });
   }
 
   async getUsers(organizationId: string, page: number, limit: number, role?: UserRole) {
@@ -72,15 +74,19 @@ export class UserService {
   async updateUser(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole): Promise<User> {
     const user = await this.getUser(id, organizationId);
 
-    // If updating role, check privileges
+    // If updating role, check privileges for target role
     if (data.role && data.role !== user.role) {
       if (!this.canManageRole(actorRole, data.role) || !this.canManageRole(actorRole, user.role)) {
         throw new ForbiddenError('You do not have permission to change to or from this role');
       }
     }
 
-    // A user cannot suspend/deactivate or change their own role unless they are SUPER_ADMIN (and even then, standard REST APIs usually block this to prevent lockouts, but we'll allow role checks above to handle it or block self-modification of sensitive fields).
-    // The controller will ensure self-updates only pass firstName/lastName.
+    // [CRITICAL RBAC FIX]: If modifying ANOTHER user, verify privilege over their existing role
+    if (id !== actorId) {
+      if (!this.canManageRole(actorRole, user.role)) {
+        throw new ForbiddenError('You do not have permission to modify this user');
+      }
+    }
 
     const updateData: Prisma.UserUpdateInput = {
       ...(data.firstName && { firstName: data.firstName }),
@@ -89,23 +95,24 @@ export class UserService {
       ...(data.status && { status: data.status }),
     };
 
-    const updated = await userRepository.update(id, organizationId, updateData);
-
     const action = data.role && data.role !== user.role ? 'USER_ROLE_CHANGED' : 'USER_UPDATED';
-
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action,
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-        ipAddress: '0.0.0.0',
-      },
-    });
+    return prisma.$transaction(async (tx) => {
+      const updated = await userRepository.update(id, organizationId, updateData, tx);
 
-    return updated;
+      await tx.auditLog.create({
+        data: {
+          action,
+          userId: actorId,
+          organizationId: actor!.organizationId,
+          metadata: { targetUserId: user.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
+          ipAddress: '0.0.0.0',
+        },
+      });
+
+      return updated;
+    });
   }
 
   async deleteUser(id: string, organizationId: string, actorId: string, actorRole: UserRole): Promise<User> {
@@ -119,21 +126,23 @@ export class UserService {
       throw new ForbiddenError('You do not have permission to delete this user');
     }
 
-    const deleted = await userRepository.update(id, organizationId, { status: UserStatus.DEACTIVATED });
-
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'USER_DEACTIVATED',
-        userId: actorId,
-        organizationId: actor!.organizationId,
-        metadata: { targetUserId: user.id, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
-      },
-    });
+    return prisma.$transaction(async (tx) => {
+      const deleted = await userRepository.update(id, organizationId, { status: UserStatus.DEACTIVATED }, tx);
 
-    return deleted;
+      await tx.auditLog.create({
+        data: {
+          action: 'USER_DEACTIVATED',
+          userId: actorId,
+          organizationId: actor!.organizationId,
+          metadata: { targetUserId: user.id, targetOrganizationId: organizationId },
+          ipAddress: '0.0.0.0',
+        },
+      });
+
+      return deleted;
+    });
   }
 }
 

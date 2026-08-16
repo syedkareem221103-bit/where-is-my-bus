@@ -246,5 +246,56 @@ describe('User Management Module (Milestone 2 - Step 2)', () => {
       expect(res.body.data.user.firstName).toBe('UpdatedName');
       expect(res.body.data.user.role).toBe(UserRole.DRIVER); // Unchanged
     });
+
+    it('ORG_ADMIN cannot deactivate or modify a SUPER_ADMIN', async () => {
+      const res = await request(testApp)
+        .patch(`/api/v1/users/${superAdminId}`)
+        .set('Authorization', `Bearer ${orgAdminToken1}`)
+        .send({
+          status: 'DEACTIVATED'
+        });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /api/v1/users', () => {
+    it('ORG_ADMIN can list users in their tenant', async () => {
+      const res = await request(testApp)
+        .get('/api/v1/users')
+        .set('Authorization', `Bearer ${orgAdminToken1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.users).toBeInstanceOf(Array);
+      expect(res.body.data.total).toBeGreaterThan(0);
+      expect(res.body.data.users.every((u: any) => u.organizationId === orgId1)).toBe(true);
+    });
+  });
+
+  describe('DELETE /api/v1/users/:id', () => {
+    it('ORG_ADMIN can deactivate a DRIVER in their tenant', async () => {
+      const decoded: any = jwt.decode(driverToken1);
+      const targetId = decoded.sub;
+
+      const res = await request(testApp)
+        .delete(`/api/v1/users/${targetId}`)
+        .set('Authorization', `Bearer ${orgAdminToken1}`);
+
+      expect(res.status).toBe(200);
+      
+      const check = await request(testApp)
+        .get(`/api/v1/users/${targetId}`)
+        .set('Authorization', `Bearer ${orgAdminToken1}`);
+      
+      expect(check.body.data.user.status).toBe('DEACTIVATED');
+    });
+
+    it('ORG_ADMIN cannot delete a SUPER_ADMIN', async () => {
+      const res = await request(testApp)
+        .delete(`/api/v1/users/${superAdminId}`)
+        .set('Authorization', `Bearer ${orgAdminToken1}`);
+
+      expect(res.status).toBe(403);
+    });
   });
 });
