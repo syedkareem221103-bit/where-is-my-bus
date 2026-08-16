@@ -66,7 +66,7 @@ export class GpsTrackingService {
 
     // 🚀 NEW: Trigger Geofencing & Smart Alerts Evaluation 
     try {
-      const gfResults = GeofenceEvaluationService.evaluateLocation(organizationId, ping.latitude, ping.longitude);
+      const gfResults = await GeofenceEvaluationService.evaluateLocation(organizationId, ping.latitude, ping.longitude);
       await AlertProcessingService.evaluateRulesAndDispatch(organizationId, tripId, ping, gfResults);
     } catch (err) {
       logger.error('Geofencing evaluation error:', { error: err });

@@ -25,7 +25,6 @@ export class GeofenceService {
       this.redisSub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
     }
     this.setupRedisSubscription();
-    this.hydrateAllCaches();
   }
 
   public static getInstance(): GeofenceService {
@@ -56,27 +55,6 @@ export class GeofenceService {
     });
   }
 
-  private async hydrateAllCaches() {
-    try {
-      const activeGeofences = await prisma.geofence.findMany({
-        where: { isActive: true }
-      });
-      
-      this.geofencesCache.clear();
-      
-      activeGeofences.forEach(gf => {
-        if (!this.geofencesCache.has(gf.organizationId)) {
-          this.geofencesCache.set(gf.organizationId, []);
-        }
-        this.geofencesCache.get(gf.organizationId)!.push(gf);
-      });
-      
-      logger.info(`Geofence cache hydrated with ${activeGeofences.length} geofences across ${this.geofencesCache.size} organizations.`);
-    } catch (error) {
-      logger.error('Failed to hydrate all geofence caches', { error });
-    }
-  }
-
   private async hydrateCacheForOrg(orgId: string) {
     try {
       const activeGeofences = await prisma.geofence.findMany({
@@ -84,7 +62,7 @@ export class GeofenceService {
       });
       
       this.geofencesCache.set(orgId, activeGeofences);
-      logger.info(`Geofence cache rehydrated for organization ${orgId} with ${activeGeofences.length} geofences.`);
+      logger.info(`Geofence cache hydrated for organization ${orgId} with ${activeGeofences.length} geofences.`);
     } catch (error) {
       logger.error(`Failed to hydrate geofence cache for organization ${orgId}`, { error });
     }
@@ -97,7 +75,10 @@ export class GeofenceService {
     });
   }
 
-  public getGeofencesForOrg(orgId: string): Geofence[] {
+  public async getGeofencesForOrg(orgId: string): Promise<Geofence[]> {
+    if (!this.geofencesCache.has(orgId)) {
+      await this.hydrateCacheForOrg(orgId);
+    }
     return this.geofencesCache.get(orgId) || [];
   }
 
@@ -105,49 +86,89 @@ export class GeofenceService {
     return prisma.geofence.findMany({ where: { organizationId: orgId } });
   }
 
-  public async createGeofence(orgId: string, data: CreateGeofenceDTO): Promise<Geofence> {
-    const gf = await prisma.geofence.create({
-      data: {
-        organizationId: orgId,
-        name: data.name,
-        type: data.type,
-        geometry: data.geometry,
-        isActive: data.isActive ?? true,
-      }
+  public async createGeofence(orgId: string, userId: string, data: CreateGeofenceDTO): Promise<Geofence> {
+    const gf = await prisma.$transaction(async (tx) => {
+      const geofence = await tx.geofence.create({
+        data: {
+          organizationId: orgId,
+          name: data.name,
+          type: data.type,
+          geometry: data.geometry,
+          isActive: data.isActive ?? true,
+        }
+      });
+      
+      await tx.auditLog.create({
+        data: {
+          organizationId: orgId,
+          userId: userId,
+          action: 'GEOFENCE_CREATED',
+          metadata: { geofenceId: geofence.id },
+          ipAddress: '127.0.0.1'
+        }
+      });
+      
+      return geofence;
     });
 
     this.notifyCluster(orgId, 'CREATE', gf.id);
     return gf;
   }
 
-  public async updateGeofence(orgId: string, id: string, data: UpdateGeofenceDTO): Promise<Geofence> {
-    // Ensure exists and belongs to org
-    const existing = await prisma.geofence.findUnique({ where: { id } });
-    if (!existing || existing.organizationId !== orgId) {
-      throw new Error('Geofence not found');
-    }
-
-    const gf = await prisma.geofence.update({
-      where: { id },
-      data: {
-        name: data.name,
-        type: data.type,
-        geometry: data.geometry,
-        isActive: data.isActive,
+  public async updateGeofence(orgId: string, id: string, userId: string, data: UpdateGeofenceDTO): Promise<Geofence> {
+    const gf = await prisma.$transaction(async (tx) => {
+      const existing = await tx.geofence.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== orgId) {
+        throw new Error('Geofence not found');
       }
+
+      const geofence = await tx.geofence.update({
+        where: { id },
+        data: {
+          name: data.name,
+          type: data.type,
+          geometry: data.geometry,
+          isActive: data.isActive,
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: orgId,
+          userId: userId,
+          action: 'GEOFENCE_UPDATED',
+          metadata: { geofenceId: geofence.id },
+          ipAddress: '127.0.0.1'
+        }
+      });
+
+      return geofence;
     });
 
     this.notifyCluster(orgId, 'UPDATE', gf.id);
     return gf;
   }
 
-  public async deleteGeofence(orgId: string, id: string): Promise<void> {
-    const existing = await prisma.geofence.findUnique({ where: { id } });
-    if (!existing || existing.organizationId !== orgId) {
-      throw new Error('Geofence not found');
-    }
+  public async deleteGeofence(orgId: string, id: string, userId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.geofence.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== orgId) {
+        throw new Error('Geofence not found');
+      }
 
-    await prisma.geofence.delete({ where: { id } });
+      await tx.geofence.delete({ where: { id } });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: orgId,
+          userId: userId,
+          action: 'GEOFENCE_DELETED',
+          metadata: { geofenceId: id },
+          ipAddress: '127.0.0.1'
+        }
+      });
+    });
+
     this.notifyCluster(orgId, 'DELETE', id);
   }
 }
