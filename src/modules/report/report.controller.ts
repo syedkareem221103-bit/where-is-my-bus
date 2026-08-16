@@ -6,6 +6,7 @@ import { LocalStorageService } from '../../services/storage.service';
 import { PrismaClient } from '@prisma/client';
 import AuditService from '../../services/audit.service';
 import path from 'path';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 const storage = LocalStorageService.getInstance();
@@ -14,8 +15,8 @@ export class ReportController {
   
   public async createSubscription(req: Request, res: Response) {
     try {
-      const organizationId = req.user!.organizationId;
-      const creatorId = req.user!.id;
+      const organizationId = (req.user as any).org || (req.user as any).organizationId;
+      const creatorId = (req.user as any).id || (req.user as any).userId || (req.user as any).sub;
       
       const validatedData = CreateReportSubscriptionSchema.parse(req.body);
       
@@ -25,13 +26,6 @@ export class ReportController {
         validatedData
       );
       
-      await AuditService.getInstance().log({
-        organizationId,
-        userId: creatorId,
-        action: 'REPORT_SUBSCRIPTION_CREATED',
-        details: { subscriptionId: subscription.id, reportType: validatedData.reportType }
-      });
-      
       res.status(201).json(subscription);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -40,7 +34,7 @@ export class ReportController {
 
   public async getSubscriptions(req: Request, res: Response) {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = (req.user as any).org || (req.user as any).organizationId;
       const subscriptions = await reportService.getSubscriptions(organizationId);
       res.json(subscriptions);
     } catch (err: any) {
@@ -50,19 +44,12 @@ export class ReportController {
 
   public async deleteSubscription(req: Request, res: Response) {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = (req.user as any).org || (req.user as any).organizationId;
       const { id } = req.params;
-      const userId = req.user!.id;
+      const userId = (req.user as any).id || (req.user as any).userId || (req.user as any).sub;
       
-      await reportService.deleteSubscription(organizationId, id);
+      await reportService.deleteSubscription(organizationId, id, userId);
       
-      await AuditService.getInstance().log({
-        organizationId,
-        userId,
-        action: 'REPORT_SUBSCRIPTION_DELETED',
-        details: { subscriptionId: id }
-      });
-
       res.status(204).send();
     } catch (err: any) {
       res.status(404).json({ error: 'Subscription not found' });
@@ -71,7 +58,7 @@ export class ReportController {
 
   public async getExecutions(req: Request, res: Response) {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = (req.user as any).org || (req.user as any).organizationId;
       const executions = await reportService.getExecutions(organizationId);
       res.json(executions);
     } catch (err: any) {
@@ -81,8 +68,9 @@ export class ReportController {
 
   public async exportOnDemand(req: Request, res: Response) {
     try {
-      const organizationId = req.user!.organizationId;
+      const organizationId = (req.user as any).org || (req.user as any).organizationId;
       const validatedData = OnDemandExportSchema.parse(req.body);
+      const userId = (req.user as any).id || (req.user as any).userId || (req.user as any).sub;
       
       // Implement basic rate limiting in memory (better done in Redis)
       // We skip actual rate limiting code here for brevity, assuming standard Express middleware handles it.
@@ -95,7 +83,7 @@ export class ReportController {
       
       await AuditService.getInstance().log({
         organizationId,
-        userId: req.user!.id,
+        userId: userId,
         action: 'REPORT_ON_DEMAND_GENERATED',
         details: { executionId: result.executionId, reportType: validatedData.reportType }
       });
@@ -111,8 +99,9 @@ export class ReportController {
       const { token } = req.params;
       
       // Token must match execution record and not be expired
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const execution = await prisma.reportExecution.findUnique({
-        where: { tokenHash: token },
+        where: { tokenHash },
       });
 
       if (!execution || !execution.tokenExpiresAt || new Date() > execution.tokenExpiresAt) {
@@ -145,9 +134,10 @@ export class ReportController {
       
       // Attempt to audit (we might not have req.user if downloading via raw link, but usually we do)
       if (req.user) {
+        const userId = (req.user as any).id || (req.user as any).userId || (req.user as any).sub;
         await AuditService.getInstance().log({
           organizationId: execution.organizationId,
-          userId: req.user.id,
+          userId: userId,
           action: 'REPORT_DOWNLOADED',
           details: { executionId: execution.id }
         });

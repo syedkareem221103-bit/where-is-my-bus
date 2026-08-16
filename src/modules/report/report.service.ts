@@ -18,16 +18,30 @@ export class ReportService {
     // Simple next run calculation based on frequency
     const nextRunAt = this.calculateNextRun(data.frequency);
 
-    return prisma.reportSubscription.create({
-      data: {
-        organizationId,
-        creatorId,
-        reportType: data.reportType,
-        frequency: data.frequency,
-        format: data.format,
-        targetEmails: data.targetEmails,
-        nextRunAt,
-      },
+    return prisma.$transaction(async (tx) => {
+      const subscription = await tx.reportSubscription.create({
+        data: {
+          organizationId,
+          creatorId,
+          reportType: data.reportType,
+          frequency: data.frequency,
+          format: data.format,
+          targetEmails: data.targetEmails,
+          nextRunAt,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          userId: creatorId,
+          action: 'REPORT_SUBSCRIPTION_CREATED',
+          metadata: { subscriptionId: subscription.id, reportType: data.reportType },
+          ipAddress: '127.0.0.1'
+        }
+      });
+
+      return subscription;
     });
   }
 
@@ -44,22 +58,33 @@ export class ReportService {
   /**
    * Delete a subscription
    */
-  public async deleteSubscription(organizationId: string, subscriptionId: string) {
-    // Verify ownership
-    const sub = await prisma.reportSubscription.findUnique({
-      where: { id: subscriptionId },
-    });
+  public async deleteSubscription(organizationId: string, subscriptionId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      // Verify ownership
+      const sub = await tx.reportSubscription.findUnique({
+        where: { id: subscriptionId },
+      });
 
-    if (!sub || sub.organizationId !== organizationId) {
-      throw new Error('Subscription not found or unauthorized');
-    }
+      if (!sub || sub.organizationId !== organizationId) {
+        throw new Error('Subscription not found or unauthorized');
+      }
 
-    await prisma.reportSubscription.delete({
-      where: { id: subscriptionId },
+      await tx.reportSubscription.delete({
+        where: { id: subscriptionId },
+      });
+      
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          userId,
+          action: 'REPORT_SUBSCRIPTION_DELETED',
+          metadata: { subscriptionId },
+          ipAddress: '127.0.0.1'
+        }
+      });
+      
+      return { success: true };
     });
-    
-    // Note: the relation is SetNull for ReportExecution, so executions remain.
-    return { success: true };
   }
 
   /**

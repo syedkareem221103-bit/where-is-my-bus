@@ -115,27 +115,34 @@ export class ReportScheduler {
       }
 
       try {
-        await prisma.reportExecution.update({
-          where: { id: exec.id },
+        // [CRITICAL FIX] Optimistic lock update to claim the retry job
+        const updated = await prisma.reportExecution.updateMany({
+          where: { 
+            id: exec.id,
+            status: 'FAILED',
+            retryCount: exec.retryCount // ensures no other node claimed it
+          },
           data: {
             status: 'RUNNING',
             retryCount: { increment: 1 }
           }
         });
         
-        await AuditService.getInstance().log({
-          organizationId: exec.organizationId,
-          userId: 'SYSTEM',
-          action: 'REPORT_EXECUTION_RETRY',
-          details: { executionId: exec.id, retryCount: exec.retryCount + 1 }
-        });
+        if (updated.count > 0) {
+          await AuditService.getInstance().log({
+            organizationId: exec.organizationId,
+            userId: 'SYSTEM',
+            action: 'REPORT_EXECUTION_RETRY',
+            details: { executionId: exec.id, retryCount: exec.retryCount + 1 }
+          });
 
-        await reportGenerator.generateReport(
-          exec.organizationId,
-          exec.subscription.reportType,
-          exec.subscription.format,
-          exec.subscription.id
-        );
+          await reportGenerator.generateReport(
+            exec.organizationId,
+            exec.subscription.reportType,
+            exec.subscription.format,
+            exec.subscription.id
+          );
+        }
       } catch (err) {
         logger.error(`Failed to retry execution ${exec.id}`, err);
       }
