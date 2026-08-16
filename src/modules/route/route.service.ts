@@ -4,7 +4,7 @@ import prisma from '../../config/database';
 import { Prisma, Route, RouteStatus, UserRole } from '@prisma/client';
 
 export class RouteService {
-  async createRoute(data: any, actorId: string, actorRole: UserRole, organizationId: string): Promise<Route> {
+  async createRoute(data: any, actorId: string, actorRole: UserRole, organizationId: string, ipAddress: string): Promise<Route> {
     const existing = await routeRepository.findByName(data.name, organizationId);
     if (existing) {
       throw new ConflictError(`Route with name '${data.name}' already exists in your organization`);
@@ -25,7 +25,7 @@ export class RouteService {
         userId: actorId,
         organizationId: actor!.organizationId,
         metadata: { routeId: route.id, name: route.name, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
+        ipAddress,
       },
     });
 
@@ -53,7 +53,7 @@ export class RouteService {
     return route;
   }
 
-  async updateRoute(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole): Promise<Route> {
+  async updateRoute(id: string, organizationId: string, data: any, actorId: string, actorRole: UserRole, ipAddress: string): Promise<Route> {
     const route = await this.getRoute(id, organizationId);
 
     // OPERATOR role restricted to status updates only
@@ -73,8 +73,8 @@ export class RouteService {
 
     const updateData: Prisma.RouteUpdateInput = {
       ...(data.name && { name: data.name }),
-      ...(data.version !== undefined && { version: data.version }),
       ...(data.status && { status: data.status }),
+      version: { increment: 1 },
     };
 
     const updated = await routeRepository.update(id, organizationId, updateData);
@@ -89,17 +89,30 @@ export class RouteService {
         userId: actorId,
         organizationId: actor!.organizationId,
         metadata: { routeId: route.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-        ipAddress: '0.0.0.0',
+        ipAddress,
       },
     });
 
     return updated;
   }
 
-  async deleteRoute(id: string, organizationId: string, actorId: string, actorRole: UserRole): Promise<Route> {
+  async deleteRoute(id: string, organizationId: string, actorId: string, actorRole: UserRole, ipAddress: string): Promise<Route> {
     const route = await this.getRoute(id, organizationId);
 
-    const deleted = await routeRepository.update(id, organizationId, { status: RouteStatus.INACTIVE });
+    const deleted = await prisma.$transaction(async (tx) => {
+      const activeSchedule = await tx.schedule.findFirst({
+        where: { routeId: id, organizationId, isActive: true },
+      });
+
+      if (activeSchedule) {
+        throw new ConflictError('Cannot deactivate route: active schedules are currently associated with it.');
+      }
+
+      return tx.route.update({
+        where: { id_organizationId: { id, organizationId } },
+        data: { status: RouteStatus.INACTIVE },
+      });
+    });
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
@@ -109,7 +122,7 @@ export class RouteService {
         userId: actorId,
         organizationId: actor!.organizationId,
         metadata: { routeId: route.id, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
+        ipAddress,
       },
     });
 

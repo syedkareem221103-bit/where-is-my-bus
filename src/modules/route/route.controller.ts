@@ -6,11 +6,12 @@ export class RouteController {
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const data = req.body;
-      const actorId = req.user!.sub;
+      const actorId = req.user!.sub || req.user!.id;
       const actorRole = req.user!.role;
-      const organizationId = req.user!.org;
+      const organizationId = req.user!.org || req.user!.organizationId;
+      const ipAddress = req.ip || '127.0.0.1';
 
-      const route = await routeService.createRoute(data, actorId, actorRole, organizationId);
+      const route = await routeService.createRoute(data, actorId, actorRole, organizationId, ipAddress);
 
       res.status(201).json({
         status: 'success',
@@ -27,7 +28,7 @@ export class RouteController {
       const limit = Number(req.query.limit) || 10;
       const status = req.query.status as RouteStatus | undefined;
       const search = req.query.search as string | undefined;
-      const organizationId = req.user!.org;
+      const organizationId = req.user!.org || req.user!.organizationId;
 
       const result = await routeService.getRoutes(organizationId, page, limit, status, search);
 
@@ -42,7 +43,7 @@ export class RouteController {
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.org;
+      const organizationId = req.user!.org || req.user!.organizationId;
       const { id } = req.params;
 
       const route = await routeService.getRoute(id, organizationId);
@@ -58,13 +59,14 @@ export class RouteController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const organizationId = req.user!.org;
+      const organizationId = req.user!.org || req.user!.organizationId;
       const { id } = req.params;
-      const actorId = req.user!.sub;
+      const actorId = req.user!.sub || req.user!.id;
       const actorRole = req.user!.role;
       const data = req.body;
+      const ipAddress = req.ip || '127.0.0.1';
 
-      const route = await routeService.updateRoute(id, organizationId, data, actorId, actorRole);
+      const route = await routeService.updateRoute(id, organizationId, data, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
@@ -78,11 +80,12 @@ export class RouteController {
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const organizationId = req.user!.org;
-      const actorId = req.user!.sub;
+      const organizationId = req.user!.org || req.user!.organizationId;
+      const actorId = req.user!.sub || req.user!.id;
       const actorRole = req.user!.role;
+      const ipAddress = req.ip || '127.0.0.1';
 
-      await routeService.deleteRoute(id, organizationId, actorId, actorRole);
+      await routeService.deleteRoute(id, organizationId, actorId, actorRole, ipAddress);
 
       res.status(200).json({
         status: 'success',
