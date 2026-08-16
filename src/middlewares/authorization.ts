@@ -19,15 +19,20 @@ export const requireOrganization = (req: Request, _res: Response, next: NextFunc
 export const auditAuthorizationFailure = async (req: Request, reason: string): Promise<void> => {
   try {
     if (req.user) {
-      await prisma.auditLog?.create({
-        data: {
-          action: 'AUTHORIZATION_FAILURE',
-          organizationId: req.user.org,
-          userId: req.user.sub,
-          ipAddress: req.ip || req.headers['x-forwarded-for'] as string || '0.0.0.0',
-          metadata: { reason, path: req.path, method: req.method }
-        }
-      });
+      const orgId = req.user.organizationId || (req.user as any).org;
+      const userId = req.user.id || (req.user as any).userId || (req.user as any).sub;
+      
+      if (orgId && userId) {
+        await prisma.auditLog?.create({
+          data: {
+            action: 'AUTHORIZATION_FAILURE',
+            organizationId: orgId,
+            userId: userId,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] as string || '0.0.0.0',
+            metadata: { reason, path: req.path, method: req.method }
+          }
+        });
+      }
     }
   } catch (err) {
     console.error('Failed to write authorization failure audit log', err);

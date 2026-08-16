@@ -9,7 +9,7 @@ export class AlertController {
   
   public static async getAlerts(req: Request, res: Response, next: NextFunction) {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId || (req.user as any).org;
       const filters = AlertFilterSchema.parse(req.query);
 
       const where: Prisma.SmartAlertWhereInput = {
@@ -41,9 +41,10 @@ export class AlertController {
 
   public static async acknowledgeAlert(req: Request, res: Response, next: NextFunction) {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId || (req.user as any).org;
+      const userId = req.user!.id || (req.user as any).sub;
       const id = req.params.id;
-      const alert = await AlertProcessingService.acknowledgeAlert(orgId, id, req.user!.id);
+      const alert = await AlertProcessingService.acknowledgeAlert(orgId, id, userId);
       res.json(alert);
     } catch (error) {
       next(error);
@@ -52,11 +53,12 @@ export class AlertController {
 
   public static async resolveAlert(req: Request, res: Response, next: NextFunction) {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId || (req.user as any).org;
+      const userId = req.user!.id || (req.user as any).sub;
       const id = req.params.id;
       const { resolutionNotes } = UpdateAlertStatusSchema.parse(req.body);
       
-      const alert = await AlertProcessingService.resolveAlert(orgId, id, req.user!.id, resolutionNotes);
+      const alert = await AlertProcessingService.resolveAlert(orgId, id, userId, resolutionNotes);
       res.json(alert);
     } catch (error) {
       next(error);

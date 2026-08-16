@@ -23,4 +23,9 @@ export interface IQueueProvider {
    * Get queue depth
    */
   getQueueDepth(queueName: string): Promise<number>;
+
+  /**
+   * Gracefully stop accepting new jobs and wait for pending jobs
+   */
+  shutdown?(): Promise<void>;
 }

@@ -27,9 +27,11 @@ export class MockQueueProvider implements IQueueProvider {
     this.queues[queueName].push(job);
     logger.debug(`[MockQueue] Enqueued job ${job.id} to ${queueName} with priority ${options?.priority}`);
 
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      this.timers = this.timers.filter(t => t !== timer);
       this.processNext(queueName);
     }, options?.delay || 0);
+    this.timers.push(timer);
 
     return job.id;
   }
@@ -42,6 +44,8 @@ export class MockQueueProvider implements IQueueProvider {
   async getQueueDepth(queueName: string): Promise<number> {
     return this.queues[queueName]?.length || 0;
   }
+
+  private timers: NodeJS.Timeout[] = [];
 
   private async processNext(queueName: string) {
     const handler = this.handlers[queueName];
@@ -66,7 +70,18 @@ export class MockQueueProvider implements IQueueProvider {
     }
 
     if (queue.length > 0) {
-      setTimeout(() => this.processNext(queueName), 0);
+      const timer = setTimeout(() => {
+        this.timers = this.timers.filter(t => t !== timer);
+        this.processNext(queueName);
+      }, 0);
+      this.timers.push(timer);
     }
+  }
+
+  public async shutdown(): Promise<void> {
+    for (const timer of this.timers) {
+      clearTimeout(timer);
+    }
+    this.timers = [];
   }
 }

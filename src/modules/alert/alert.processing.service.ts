@@ -47,14 +47,12 @@ export class AlertProcessingService {
       // 1. Deduplication using Redis
       // For example, avoid sending duplicate SPEEDING alerts for the same trip within 2 minutes.
       const dedupKey = `alert:${payload.organizationId}:${payload.tripId}:${payload.category}:${payload.geofenceId || 'none'}`;
-      const isDuplicate = await this.redis.get(dedupKey);
-
-      if (isDuplicate) {
+      
+      // Atomic SET IF NOT EXISTS lock
+      const lock = await this.redis.set(dedupKey, '1', 'EX', 120, 'NX');
+      if (!lock) {
         return null; // Skip duplicate
       }
-
-      // Set deduplication lock (e.g., 2 minutes)
-      await this.redis.set(dedupKey, '1', 'EX', 120);
 
       const isTransient = payload.priority === 'LOW' && payload.category !== 'ROUTE_DEVIATION';
 
@@ -101,11 +99,11 @@ export class AlertProcessingService {
         // for simplicity we dispatch to a generic event 'alert.critical' and the preference service resolves it, 
         // or we fetch admins. Let's just pass an empty recipientIds array if we don't have them, 
         // or mock fetching admins. In a real app we'd query users).
-        prisma.user.findMany({ where: { organizationId: payload.organizationId, role: 'ORG_ADMIN' } })
-          .then(admins => {
+        await prisma.user.findMany({ where: { organizationId: payload.organizationId, role: 'ORG_ADMIN' } })
+          .then(async admins => {
             const adminIds = admins.map(a => a.id);
             if (adminIds.length > 0) {
-              notificationService.dispatch(
+              await notificationService.dispatch(
                 payload.organizationId,
                 'alert.critical',
                 payload.priority,
@@ -125,31 +123,57 @@ export class AlertProcessingService {
   }
 
   public async acknowledgeAlert(orgId: string, alertId: string, userId: string): Promise<SmartAlert> {
-    const alert = await prisma.smartAlert.update({
-      where: { id: alertId, organizationId: orgId },
-      data: { status: 'ACKNOWLEDGED' }
+    const alert = await prisma.$transaction(async (tx) => {
+      const updated = await tx.smartAlert.update({
+        where: { id: alertId, organizationId: orgId },
+        data: { status: 'ACKNOWLEDGED' }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: orgId,
+          userId,
+          action: 'ALERT_ACKNOWLEDGED',
+          metadata: { alertId: updated.id },
+          ipAddress: '127.0.0.1'
+        }
+      });
+
+      return updated;
     });
 
     // Broadcast update
     EventDispatcher.getInstance().broadcast(`admin_${orgId}`, 'alert.updated', orgId, alert);
     
-    // Audit logging could be appended here
     return alert;
   }
 
   public async resolveAlert(orgId: string, alertId: string, userId: string, notes?: string): Promise<SmartAlert> {
-    const alert = await prisma.smartAlert.update({
-      where: { id: alertId, organizationId: orgId },
-      data: { 
-        status: 'RESOLVED',
-        resolvedAt: new Date(),
-        metadata: notes ? { resolutionNotes: notes } : {} // simplistic merge
-      }
+    const alert = await prisma.$transaction(async (tx) => {
+      const updated = await tx.smartAlert.update({
+        where: { id: alertId, organizationId: orgId },
+        data: { 
+          status: 'RESOLVED',
+          resolvedAt: new Date(),
+          metadata: notes ? { resolutionNotes: notes } : {}
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: orgId,
+          userId,
+          action: 'ALERT_RESOLVED',
+          metadata: { alertId: updated.id, resolutionNotes: notes },
+          ipAddress: '127.0.0.1'
+        }
+      });
+
+      return updated;
     });
 
     EventDispatcher.getInstance().broadcast(`admin_${orgId}`, 'alert.updated', orgId, alert);
     
-    // Audit logging could be appended here
     return alert;
   }
 
@@ -164,13 +188,12 @@ export class AlertProcessingService {
   ): Promise<void> {
     for (const gf of gfResults) {
       const stateKey = `gf_state:${tripId}:${gf.geofenceId}`;
-      const wasInsideStr = await this.redis.get(stateKey);
-      const wasInside = wasInsideStr === '1';
+      const newState = gf.isInside ? '1' : '0';
+      const previousState = await this.redis.getset(stateKey, newState);
+      const wasInside = previousState === '1';
 
       if (gf.isInside && !wasInside) {
         // ENTER EVENT
-        await this.redis.set(stateKey, '1');
-        
         let category: AlertCategory = 'GEOFENCE_ENTER';
         let priority: AlertPriority = 'LOW';
         let message = `Vehicle entered ${gf.type.toLowerCase()} geofence: ${gf.geofenceName}`;
@@ -192,8 +215,6 @@ export class AlertProcessingService {
         });
       } else if (!gf.isInside && wasInside) {
         // EXIT EVENT
-        await this.redis.set(stateKey, '0');
-        
         await this.processAlert({
           organizationId: orgId,
           tripId,
@@ -217,6 +238,12 @@ export class AlertProcessingService {
           metadata: { speed: ping.speed }
         });
       }
+    }
+  }
+
+  public shutdown(): void {
+    if (this.redis) {
+      this.redis.quit();
     }
   }
 }

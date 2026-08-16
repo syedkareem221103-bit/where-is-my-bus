@@ -86,4 +86,11 @@ export class NotificationDispatcher {
       throw err; 
     }
   }
+
+  public async shutdown(): Promise<void> {
+    if (this.queueProvider.shutdown) {
+      await this.queueProvider.shutdown();
+      logger.info('[NotificationDispatcher] Workers shut down gracefully');
+    }
+  }
 }

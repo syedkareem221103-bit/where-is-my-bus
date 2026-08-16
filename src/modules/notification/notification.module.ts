@@ -87,9 +87,14 @@ const subscribeToEvents = () => {
 
 subscribeToEvents();
 
+export const shutdown = async () => {
+  await notificationDispatcher.shutdown();
+};
+
 export default {
   notificationService,
   preferenceService,
   templateService,
-  queueProvider // Exposed for metrics/testing
+  queueProvider, // Exposed for metrics/testing
+  shutdown
 };
