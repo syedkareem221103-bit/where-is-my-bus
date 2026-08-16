@@ -85,9 +85,16 @@ export class RouteEfficiencyService {
         let tripDistance = 0;
         let tripIdle = 0;
         
-        for (let i = 1; i < trip.pings.length; i++) {
-          const prev = trip.pings[i-1];
-          const curr = trip.pings[i];
+        let pings = trip.pings;
+        // [CRITICAL FIX] Down-sample pings to prevent Node.js event-loop CPU blocking on massive trip histories
+        if (pings.length > 50) {
+          const step = Math.ceil(pings.length / 50);
+          pings = pings.filter((_, index) => index % step === 0);
+        }
+        
+        for (let i = 1; i < pings.length; i++) {
+          const prev = pings[i-1];
+          const curr = pings[i];
           const segmentDist = this.calculateHaversineDistance(
             prev.latitude, prev.longitude, curr.latitude, curr.longitude
           );
