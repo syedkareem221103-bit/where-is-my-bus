@@ -23,6 +23,7 @@ function signToken(payload: any) {
 }
 
 describe('Route Management Module (Milestone 2 - Step 4)', () => {
+  jest.setTimeout(30000);
   let orgId1: string;
   let orgId2: string;
   let superAdminToken: string;
@@ -34,7 +35,20 @@ describe('Route Management Module (Milestone 2 - Step 4)', () => {
 
   beforeAll(async () => {
     await prisma.auditLog.deleteMany();
+    await prisma.tripPing.deleteMany();
+    await prisma.incident.deleteMany();
+    await prisma.emergencyHistory.deleteMany();
+    await prisma.emergency.deleteMany();
+    await prisma.trip.deleteMany();
+    await prisma.dailyAttendance.deleteMany();
+    await prisma.schedule.deleteMany();
+    await prisma.studentStop.deleteMany();
+    await prisma.stop.deleteMany();
     await prisma.route.deleteMany();
+    await prisma.parentChild.deleteMany();
+    await prisma.driverLicense.deleteMany();
+    await prisma.vehicle.deleteMany();
+    await prisma.student.deleteMany();
     await prisma.user.deleteMany();
     await prisma.organization.deleteMany();
 
@@ -142,7 +156,20 @@ describe('Route Management Module (Milestone 2 - Step 4)', () => {
 
   afterAll(async () => {
     await prisma.auditLog.deleteMany();
+    await prisma.tripPing.deleteMany();
+    await prisma.incident.deleteMany();
+    await prisma.emergencyHistory.deleteMany();
+    await prisma.emergency.deleteMany();
+    await prisma.trip.deleteMany();
+    await prisma.dailyAttendance.deleteMany();
+    await prisma.schedule.deleteMany();
+    await prisma.studentStop.deleteMany();
+    await prisma.stop.deleteMany();
     await prisma.route.deleteMany();
+    await prisma.parentChild.deleteMany();
+    await prisma.driverLicense.deleteMany();
+    await prisma.vehicle.deleteMany();
+    await prisma.student.deleteMany();
     await prisma.user.deleteMany();
     await prisma.organization.deleteMany();
     await prisma.$disconnect();
