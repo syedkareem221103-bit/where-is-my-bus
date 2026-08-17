@@ -1,7 +1,7 @@
 import { NotificationService } from '../services/notification.service';
 import { NotificationPreferenceService } from '../services/notification-preference.service';
 import { NotificationRepository } from '../repositories/notification.repository';
-import { MockQueueProvider } from '../providers/mock-queue.provider';
+import { RedisQueueProvider } from '../providers/redis-queue.provider';
 import { NotificationPreferenceRepository } from '../repositories/notification-preference.repository';
 
 // Mock the Repositories
@@ -10,7 +10,7 @@ jest.mock('../repositories/notification-preference.repository');
 
 describe('NotificationService', () => {
   let notificationService: NotificationService;
-  let mockQueueProvider: MockQueueProvider;
+  let mockQueueProvider: RedisQueueProvider;
   let mockPrefRepo: jest.Mocked<NotificationPreferenceRepository>;
   let mockNotifRepo: jest.Mocked<NotificationRepository>;
 
@@ -18,16 +18,16 @@ describe('NotificationService', () => {
     mockNotifRepo = new NotificationRepository() as jest.Mocked<NotificationRepository>;
     mockPrefRepo = new NotificationPreferenceRepository() as jest.Mocked<NotificationPreferenceRepository>;
     
-    mockNotifRepo.createNotification.mockResolvedValue({ id: 'notif-1' } as any);
-    mockNotifRepo.createRecipients.mockResolvedValue();
+    mockNotifRepo.createNotificationWithRecipients = jest.fn().mockResolvedValue({ id: 'notif-1' } as any);
 
     const prefService = new NotificationPreferenceService(mockPrefRepo);
-    mockQueueProvider = new MockQueueProvider();
+    mockQueueProvider = new RedisQueueProvider();
 
     notificationService = new NotificationService(mockNotifRepo, prefService, mockQueueProvider);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await mockQueueProvider.shutdown();
     jest.clearAllMocks();
   });
 
@@ -44,8 +44,7 @@ describe('NotificationService', () => {
 
     await notificationService.dispatch('org-1', 'trip.started', 'HIGH', { tripId: 'trip-1' }, ['user-1', 'user-2']);
 
-    expect(mockNotifRepo.createNotification).toHaveBeenCalled();
-    expect(mockNotifRepo.createRecipients).toHaveBeenCalled();
+    expect(mockNotifRepo.createNotificationWithRecipients).toHaveBeenCalled();
 
     // Verify queue jobs
     const depthHigh = await mockQueueProvider.getQueueDepth('HIGH');

@@ -5,7 +5,7 @@ import { NotificationPreferenceService } from './services/notification-preferenc
 import { NotificationTemplateService } from './services/notification-template.service';
 import { NotificationService } from './services/notification.service';
 import { NotificationDispatcher } from './services/notification-dispatcher';
-import { MockQueueProvider } from './providers/mock-queue.provider';
+import { RedisQueueProvider } from './providers/redis-queue.provider';
 import { MockEmailProvider, MockSmsProvider, MockPushProvider, MockInAppProvider } from './providers/mock-channel.provider';
 import { eventBus } from '../../utils/event-bus';
 import logger from '../../utils/logger';
@@ -16,7 +16,7 @@ const preferenceRepo = new NotificationPreferenceRepository();
 const templateRepo = new NotificationTemplateRepository();
 
 // 2. Initialize Providers
-export const queueProvider = new MockQueueProvider();
+export const queueProvider = new RedisQueueProvider();
 const emailProvider = new MockEmailProvider();
 const smsProvider = new MockSmsProvider();
 const pushProvider = new MockPushProvider();

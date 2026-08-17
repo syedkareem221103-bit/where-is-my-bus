@@ -3,6 +3,7 @@ export interface IQueueJob<T = any> {
   data: T;
   priority?: number;
   delay?: number;
+  retryCount?: number;
 }
 
 export interface IQueueProvider {

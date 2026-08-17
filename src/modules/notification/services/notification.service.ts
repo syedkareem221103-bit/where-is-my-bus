@@ -27,8 +27,9 @@ export class NotificationService {
     const correlationId = payload.correlationId || randomUUID();
     const isEmergency = priority === 'EMERGENCY';
 
-    // 1. Create the core Notification record
-    const notification = await this.notificationRepo.createNotification({
+    const notificationId = randomUUID();
+    const notificationData = {
+      id: notificationId,
       organizationId,
       correlationId,
       tripId,
@@ -36,7 +37,7 @@ export class NotificationService {
       priority,
       payload,
       expiresAt: expiresInMs ? new Date(Date.now() + expiresInMs) : undefined
-    });
+    };
 
     const channels = ['IN_APP', 'EMAIL', 'SMS', 'PUSH'];
     const recipientsData: any[] = [];
@@ -52,13 +53,13 @@ export class NotificationService {
         const shouldSend = this.prefService.shouldSend(pref, channel, isEmergency);
         
         if (shouldSend) {
-          const idempotencyKey = `${notification.id}-${userId}-${channel}`;
+          const idempotencyKey = `${notificationId}-${userId}-${channel}`;
           const recipientId = randomUUID();
           
           recipientsData.push({
             id: recipientId,
             organizationId,
-            notificationId: notification.id,
+            notificationId,
             userId,
             channel,
             idempotencyKey
@@ -82,10 +83,10 @@ export class NotificationService {
       }
     }
 
-    // 3. Bulk insert recipients
-    if (recipientsData.length > 0) {
-      await this.notificationRepo.createRecipients(recipientsData);
+    // 3. Transactionally insert Notification + Recipients
+    await this.notificationRepo.createNotificationWithRecipients(notificationData, recipientsData);
 
+    if (recipientsData.length > 0) {
       // 4. Enqueue fan-out jobs
       for (const job of jobsToQueue) {
         await this.queueProvider.enqueue(job.queueName, job.data, {

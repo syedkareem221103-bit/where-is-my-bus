@@ -15,6 +15,25 @@ export class NotificationRepository {
     });
   }
 
+  async createNotificationWithRecipients(
+    notificationData: Prisma.NotificationUncheckedCreateInput,
+    recipientsData: Prisma.NotificationRecipientCreateManyInput[]
+  ): Promise<Notification> {
+    return prisma.$transaction(async (tx) => {
+      const notification = await tx.notification.create({
+        data: notificationData
+      });
+
+      if (recipientsData.length > 0) {
+        await tx.notificationRecipient.createMany({
+          data: recipientsData,
+          skipDuplicates: true
+        });
+      }
+      return notification;
+    });
+  }
+
   async updateRecipientStatus(
     id: string, 
     status: NotificationDeliveryStatus, 
