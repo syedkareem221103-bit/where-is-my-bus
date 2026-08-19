@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { CreateReportSubscriptionDTO } from './report.types';
 import logger from '../../utils/logger';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class ReportService {
   /**
@@ -31,15 +32,13 @@ export class ReportService {
         },
       });
 
-      await tx.auditLog.create({
-        data: {
-          organizationId,
-          userId: creatorId,
-          action: 'REPORT_SUBSCRIPTION_CREATED',
-          metadata: { subscriptionId: subscription.id, reportType: data.reportType },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: creatorId,
+        action: 'REPORT_SUBSCRIPTION_CREATED',
+        metadata: { subscriptionId: subscription.id, reportType: data.reportType },
+        ipAddress: '127.0.0.1'
+      }, tx);
 
       return subscription;
     });
@@ -73,15 +72,13 @@ export class ReportService {
         where: { id: subscriptionId },
       });
       
-      await tx.auditLog.create({
-        data: {
-          organizationId,
-          userId,
-          action: 'REPORT_SUBSCRIPTION_DELETED',
-          metadata: { subscriptionId },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: userId,
+        action: 'REPORT_SUBSCRIPTION_DELETED',
+        metadata: { subscriptionId },
+        ipAddress: '127.0.0.1'
+      }, tx);
       
       return { success: true };
     });

@@ -6,7 +6,8 @@ import { EmergencyStatus, EmergencyCategory, EmergencySeverity } from '@prisma/c
 jest.mock('../repositories/emergency.repository');
 jest.mock('../../../utils/event-bus', () => ({
   eventBus: {
-    emitEvent: jest.fn()
+    emitEvent: jest.fn(),
+    on: jest.fn()
   }
 }));
 

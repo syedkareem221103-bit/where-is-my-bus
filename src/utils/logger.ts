@@ -36,7 +36,8 @@ const transports: winston.transport[] = [
 ];
 
 // In development, also log to files for local debugging convenience
-if (process.env.NODE_ENV !== 'production') {
+// Skip in test environment to prevent Jest hanging on open file handles
+if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
   transports.push(
     new winston.transports.File({
       filename: 'logs/error.log',

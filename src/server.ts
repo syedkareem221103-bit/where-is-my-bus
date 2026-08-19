@@ -8,6 +8,7 @@ import { eventBus } from './utils/event-bus';
 import { FleetAggregator } from './modules/fleet/fleet.aggregator';
 import { reportScheduler } from './modules/report/report.scheduler';
 import { HealthScheduler } from './modules/health/health.scheduler.service';
+import { teardownApp } from './app';
 
 const server = createServer(app);
 
@@ -56,12 +57,15 @@ const handleShutdown = async (signal: string) => {
     await new Promise<void>((resolve, reject) => {
       server.close((err) => {
         if (err) return reject(err);
-        logger.info('HTTP server closed.');
         resolve();
       });
     });
 
-    // 2. Disconnect WebSockets safely
+    // 2. Shut down all background resources (Redis, queues, aggregators)
+    logger.info('Shutting down background services...');
+    await teardownApp();
+
+    // 3. Disconnect Socket Clients
     await new Promise<void>((resolve, reject) => {
       socketServer.close((err?: Error) => {
         if (err) return reject(err);
@@ -71,13 +75,8 @@ const handleShutdown = async (signal: string) => {
 
     // 3. Clear EventBus listeners to prevent memory leaks in background processing
     eventBus.removeAllListeners();
-    FleetAggregator.getInstance().shutdown();
     reportScheduler.stop();
     logger.info('EventBus listeners and aggregators cleared.');
-
-    // 4. Disconnect Prisma Client
-    await prisma.$disconnect();
-    logger.info('Database connection closed.');
 
     process.exit(0);
   } catch (error) {

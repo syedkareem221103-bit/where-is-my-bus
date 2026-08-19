@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { parentRepository } from './parent.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -26,15 +27,13 @@ export class ParentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'PARENT_CREATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { parentId: parent.id, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_CREATED',
+        metadata: { parentId: parent.id, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
 
       return parent.id;
     });
@@ -101,27 +100,23 @@ export class ParentService {
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
       if (data.status && data.status !== parent.status) {
-        await tx.auditLog.create({
-          data: {
-            action: 'PARENT_STATUS_CHANGED',
-            userId: actorId,
-            organizationId: actor!.organizationId,
-            metadata: { parentId: id, oldStatus: parent.status, newStatus: data.status, targetOrganizationId: organizationId },
-            ipAddress: ipAddress,
-          },
-        });
+        await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_STATUS_CHANGED',
+        metadata: { parentId: id, oldStatus: parent.status, newStatus: data.status, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
       }
 
       if (Object.keys(data).length > 0) {
-        await tx.auditLog.create({
-          data: {
-            action: 'PARENT_UPDATED',
-            userId: actorId,
-            organizationId: actor!.organizationId,
-            metadata: { parentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
-            ipAddress: ipAddress,
-          },
-        });
+        await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_UPDATED',
+        metadata: { parentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
+        ipAddress: ipAddress
+      }, tx);
       }
     });
 
@@ -136,15 +131,13 @@ export class ParentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'PARENT_DELETED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { parentId: id, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_DELETED',
+        metadata: { parentId: id, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
 
       return deletedParent;
     });
@@ -160,15 +153,13 @@ export class ParentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'PARENT_LINKED_STUDENT',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { parentId: id, studentId, relationshipType, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_LINKED_STUDENT',
+        metadata: { parentId: id, studentId, relationshipType, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
 
       return newLink;
     });
@@ -184,15 +175,13 @@ export class ParentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'PARENT_UNLINKED_STUDENT',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { parentId: id, studentId, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'PARENT_UNLINKED_STUDENT',
+        metadata: { parentId: id, studentId, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
     });
 
     return { message: 'Student unlinked successfully' };

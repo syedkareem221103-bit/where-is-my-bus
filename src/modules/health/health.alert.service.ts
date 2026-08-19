@@ -2,7 +2,6 @@ import Redis from 'ioredis';
 import { HealthStatus, SystemHealthPayload } from './health.types';
 import { notificationService } from '../notification/notification.module';
 import logger from '../../utils/logger';
-import { PrismaClient } from '@prisma/client';
 
 let redis: Redis;
 
@@ -13,7 +12,8 @@ if (process.env.NODE_ENV === 'test') {
   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 }
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class HealthAlertService {
   private static LAST_STATE_KEY = 'system:health:last_state';
@@ -66,5 +66,9 @@ export class HealthAlertService {
     } catch (e) {
       logger.error('Failed to dispatch health alert', { error: e });
     }
+  }
+
+  public static shutdown(): void {
+    if (redis) redis.disconnect();
   }
 }

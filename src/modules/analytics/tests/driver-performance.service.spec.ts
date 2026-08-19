@@ -1,7 +1,7 @@
 import { driverPerformanceService } from '../driver-performance.service';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../../config/database';
+
 
 jest.mock('@prisma/client', () => {
   const mPrismaClient = {
@@ -9,7 +9,7 @@ jest.mock('@prisma/client', () => {
       findMany: jest.fn(),
     },
   };
-  return { PrismaClient: jest.fn(() => mPrismaClient), TripStatus: { COMPLETED: 'COMPLETED', CANCELLED: 'CANCELLED' }, UserRole: { DRIVER: 'DRIVER' } };
+  const actualPrisma = jest.requireActual('@prisma/client'); return { ...actualPrisma, PrismaClient: jest.fn(() => mPrismaClient) };
 });
 
 describe('DriverPerformanceService', () => {

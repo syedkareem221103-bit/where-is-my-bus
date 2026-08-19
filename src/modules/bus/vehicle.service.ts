@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { vehicleRepository } from './vehicle.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -20,15 +21,13 @@ export class VehicleService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'VEHICLE_CREATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { vehicleId: vehicle.id, registrationNo: vehicle.registrationNo, targetOrganizationId: organizationId },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'VEHICLE_CREATED',
+        metadata: { vehicleId: vehicle.id, registrationNo: vehicle.registrationNo, targetOrganizationId: organizationId },
+        ipAddress: undefined
+      }, tx);
 
       return vehicle;
     });
@@ -98,15 +97,13 @@ export class VehicleService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action,
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: action,
+        metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
+        ipAddress: undefined
+      }, tx);
 
       return updated;
     });
@@ -130,15 +127,13 @@ export class VehicleService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'VEHICLE_DEACTIVATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'VEHICLE_DEACTIVATED',
+        metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId },
+        ipAddress: undefined
+      }, tx);
 
       return deleted;
     });

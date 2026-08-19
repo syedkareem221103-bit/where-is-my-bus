@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { vehicleRepository } from './vehicle.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -19,15 +20,13 @@ export class VehicleService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'VEHICLE_CREATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: 'VEHICLE_CREATED',
         metadata: { vehicleId: vehicle.id, registrationNo: vehicle.registrationNo, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
-      },
-    });
+        ipAddress: '0.0.0.0'
+      });
 
     return vehicle;
   }
@@ -83,15 +82,13 @@ export class VehicleService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action,
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: action,
         metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-        ipAddress: '0.0.0.0',
-      },
-    });
+        ipAddress: '0.0.0.0'
+      });
 
     return updated;
   }
@@ -103,15 +100,13 @@ export class VehicleService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'VEHICLE_DEACTIVATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: 'VEHICLE_DEACTIVATED',
         metadata: { vehicleId: vehicle.id, targetOrganizationId: organizationId },
-        ipAddress: '0.0.0.0',
-      },
-    });
+        ipAddress: '0.0.0.0'
+      });
 
     return deleted;
   }

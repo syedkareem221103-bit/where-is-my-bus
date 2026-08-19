@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import bcryptjs from 'bcryptjs';
 import { userRepository } from './user.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
@@ -36,15 +37,13 @@ export class UserService {
         organization: { connect: { organizationId } }
       }, tx);
 
-      await tx.auditLog.create({
-        data: {
-          action: 'USER_CREATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { targetUserId: user.id, targetOrganizationId: organizationId, role: user.role },
-          ipAddress: '0.0.0.0',
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'USER_CREATED',
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, role: user.role },
+        ipAddress: '0.0.0.0'
+      }, tx);
 
       return user;
     });
@@ -101,15 +100,13 @@ export class UserService {
     return prisma.$transaction(async (tx) => {
       const updated = await userRepository.update(id, organizationId, updateData, tx);
 
-      await tx.auditLog.create({
-        data: {
-          action,
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { targetUserId: user.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-          ipAddress: '0.0.0.0',
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: action,
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
+        ipAddress: '0.0.0.0'
+      }, tx);
 
       return updated;
     });
@@ -131,15 +128,13 @@ export class UserService {
     return prisma.$transaction(async (tx) => {
       const deleted = await userRepository.update(id, organizationId, { status: UserStatus.DEACTIVATED }, tx);
 
-      await tx.auditLog.create({
-        data: {
-          action: 'USER_DEACTIVATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { targetUserId: user.id, targetOrganizationId: organizationId },
-          ipAddress: '0.0.0.0',
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'USER_DEACTIVATED',
+        metadata: { targetUserId: user.id, targetOrganizationId: organizationId },
+        ipAddress: '0.0.0.0'
+      }, tx);
 
       return deleted;
     });

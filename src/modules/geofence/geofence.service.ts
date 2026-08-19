@@ -1,9 +1,11 @@
+import { AuditService } from '../audit/audit.service';
 import { PrismaClient, Geofence, GeofenceType } from '@prisma/client';
 import Redis from 'ioredis';
 import logger from '../../utils/logger';
 import { CreateGeofenceDTO, UpdateGeofenceDTO } from './geofence.types';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class GeofenceService {
   private static instance: GeofenceService;
@@ -98,15 +100,13 @@ export class GeofenceService {
         }
       });
       
-      await tx.auditLog.create({
-        data: {
-          organizationId: orgId,
-          userId: userId,
-          action: 'GEOFENCE_CREATED',
-          metadata: { geofenceId: geofence.id },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: 'GEOFENCE_CREATED',
+        metadata: { geofenceId: geofence.id },
+        ipAddress: '127.0.0.1'
+      }, tx);
       
       return geofence;
     });
@@ -132,15 +132,13 @@ export class GeofenceService {
         }
       });
 
-      await tx.auditLog.create({
-        data: {
-          organizationId: orgId,
-          userId: userId,
-          action: 'GEOFENCE_UPDATED',
-          metadata: { geofenceId: geofence.id },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: 'GEOFENCE_UPDATED',
+        metadata: { geofenceId: geofence.id },
+        ipAddress: '127.0.0.1'
+      }, tx);
 
       return geofence;
     });
@@ -158,18 +156,21 @@ export class GeofenceService {
 
       await tx.geofence.delete({ where: { id } });
 
-      await tx.auditLog.create({
-        data: {
-          organizationId: orgId,
-          userId: userId,
-          action: 'GEOFENCE_DELETED',
-          metadata: { geofenceId: id },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: 'GEOFENCE_DELETED',
+        metadata: { geofenceId: id },
+        ipAddress: '127.0.0.1'
+      }, tx);
     });
 
     this.notifyCluster(orgId, 'DELETE', id);
+  }
+
+  public shutdown(): void {
+    if (this.redisPub) this.redisPub.disconnect();
+    if (this.redisSub) this.redisSub.disconnect();
   }
 }
 

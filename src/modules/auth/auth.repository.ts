@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { prisma } from '../../config/database';
 import { Prisma, Organization, User, DeviceSession, AuditLog } from '@prisma/client';
 
@@ -87,15 +88,13 @@ export class AuthRepository {
       await tx.deviceSession.deleteMany({
         where: { id: sid, organizationId: orgId, userId: userId }
       });
-      await tx.auditLog.create({
-        data: {
-          organization: { connect: { organizationId: orgId } },
-          user: { connect: { id: userId } },
-          action: action,
-          metadata: { reason: "Suspected replay, stale rotated token, or session mismatch" },
-          ipAddress: ipAddress
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: action,
+        metadata: { reason: "Suspected replay, stale rotated token, or session mismatch" },
+        ipAddress: ipAddress
+      }, tx);
     });
   }
 
@@ -105,8 +104,14 @@ export class AuthRepository {
     });
   }
 
-  async createAuditLog(data: Prisma.AuditLogCreateInput): Promise<AuditLog> {
-    return prisma.auditLog.create({ data });
+  async createAuditLog(data: any): Promise<any> {
+    return AuditService.getInstance().logEvent({
+      organizationId: data.organization.connect.organizationId,
+      userId: data.user.connect.id,
+      action: data.action,
+      metadata: data.metadata,
+      ipAddress: data.ipAddress
+    });
   }
 }
 

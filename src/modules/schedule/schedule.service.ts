@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { ScheduleRepository } from './schedule.repository';
 import { NotFoundError, ConflictError, BadRequestError } from '../../errors';
 import { prisma } from '../../config/database';
@@ -40,15 +41,13 @@ export class ScheduleService {
     });
 
     // Create Audit Log
-    await prisma.auditLog.create({
-      data: {
-        action: 'SCHEDULE_CREATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId,
+        action: 'SCHEDULE_CREATED',
         metadata: { scheduleId: schedule.id, routeId: schedule.routeId },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
 
     return schedule;
   }
@@ -94,15 +93,13 @@ export class ScheduleService {
     await this.getScheduleById(organizationId, id);
     const updated = await this.scheduleRepository.update(id, organizationId, data);
     
-    await prisma.auditLog.create({
-      data: {
-        action: 'SCHEDULE_UPDATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId,
+        action: 'SCHEDULE_UPDATED',
         metadata: { scheduleId: id, updates: data },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
     
     return updated;
   }
@@ -132,15 +129,13 @@ export class ScheduleService {
       });
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'SCHEDULE_DEACTIVATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId,
+        action: 'SCHEDULE_DEACTIVATED',
         metadata: { scheduleId: id },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
 
     return deleted;
   }

@@ -1,7 +1,7 @@
 import { RouteReplayService } from '../route-replay.service';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../../config/database';
+
 
 jest.mock('@prisma/client', () => {
   const mPrismaClient = {
@@ -9,7 +9,7 @@ jest.mock('@prisma/client', () => {
       findFirst: jest.fn()
     }
   };
-  return { PrismaClient: jest.fn(() => mPrismaClient) };
+  const actualPrisma = jest.requireActual('@prisma/client'); return { ...actualPrisma, PrismaClient: jest.fn(() => mPrismaClient) };
 });
 
 describe('RouteReplayService', () => {

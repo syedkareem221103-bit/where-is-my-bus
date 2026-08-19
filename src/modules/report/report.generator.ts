@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { Readable, PassThrough } from 'stream';
 import { LocalStorageService } from '../../services/storage.service';
 import { ExportEngine } from './export.engine';
@@ -8,7 +7,8 @@ import AuditService from '../../services/audit.service';
 import { driverPerformanceService } from '../analytics/driver-performance.service';
 import { RouteEfficiencyService } from '../analytics/route-efficiency.service';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 const storage = LocalStorageService.getInstance();
 
 export class ReportGenerator {

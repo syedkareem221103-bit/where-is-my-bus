@@ -1,6 +1,5 @@
 import cron from 'node-cron';
 import Redis from 'ioredis';
-import { PrismaClient } from '@prisma/client';
 import { HealthAggregationService } from './health.aggregation.service';
 import { HealthAlertService } from './health.alert.service';
 import logger from '../../utils/logger';
@@ -14,24 +13,26 @@ if (process.env.NODE_ENV === 'test') {
   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 }
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class HealthScheduler {
   private static LOCK_KEY = 'system:health:snapshot:lock';
+  private static tasks: any[] = [];
 
   public static initialize(): void {
     // Every 10 seconds: Deep evaluation, cache in Redis, broadcast over Socket.IO, check alerts
-    cron.schedule('*/10 * * * * *', async () => {
+    this.tasks.push(cron.schedule('*/10 * * * * *', async () => {
       try {
         const payload = await HealthAggregationService.evaluateAndCache();
         await HealthAlertService.evaluateStateTransition(payload);
       } catch (e) {
         logger.error('Health live evaluation failed', { error: e });
       }
-    });
+    }));
 
     // Every hour: Leader election to persist snapshot
-    cron.schedule('0 * * * *', async () => {
+    this.tasks.push(cron.schedule('0 * * * *', async () => {
       try {
         // Distributed lock for 30 seconds to ensure only one node writes the hourly snapshot
         const acquired = await redis.set(this.LOCK_KEY, 'locked', 'EX', 30, 'NX');
@@ -57,10 +58,10 @@ export class HealthScheduler {
       } catch (e) {
         logger.error('Failed to persist hourly health snapshot', { error: e });
       }
-    });
+    }));
 
     // Every night at 3 AM: Purge snapshots older than 90 days
-    cron.schedule('0 3 * * *', async () => {
+    this.tasks.push(cron.schedule('0 3 * * *', async () => {
       try {
         const acquired = await redis.set('system:health:retention:lock', 'locked', 'EX', 60, 'NX');
         if (acquired) {
@@ -77,6 +78,11 @@ export class HealthScheduler {
       } catch (e) {
         logger.error('Failed to purge historical health snapshots', { error: e });
       }
-    });
+    }));
+  }
+
+  public static shutdown(): void {
+    this.tasks.forEach(t => t.stop());
+    if (redis) redis.disconnect();
   }
 }

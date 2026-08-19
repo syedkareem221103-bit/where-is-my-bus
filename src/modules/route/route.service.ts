@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { routeRepository } from './route.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -19,15 +20,13 @@ export class RouteService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'ROUTE_CREATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: 'ROUTE_CREATED',
         metadata: { routeId: route.id, name: route.name, targetOrganizationId: organizationId },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
 
     return route;
   }
@@ -83,15 +82,13 @@ export class RouteService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action,
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: action,
         metadata: { routeId: route.id, targetOrganizationId: organizationId, updates: Object.keys(updateData) },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
 
     return updated;
   }
@@ -116,15 +113,13 @@ export class RouteService {
 
     const actor = await prisma.user.findUnique({ where: { id: actorId } });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'ROUTE_DEACTIVATED',
+    await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
         userId: actorId,
-        organizationId: actor!.organizationId,
+        action: 'ROUTE_DEACTIVATED',
         metadata: { routeId: route.id, targetOrganizationId: organizationId },
-        ipAddress,
-      },
-    });
+        ipAddress: undefined
+      });
 
     return deleted;
   }

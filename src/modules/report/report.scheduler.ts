@@ -1,11 +1,11 @@
 import * as cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
 import { reportGenerator } from './report.generator';
 import { reportService } from './report.service';
 import logger from '../../utils/logger';
 import AuditService from '../../services/audit.service';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class ReportScheduler {
   private cronJob: cron.ScheduledTask | null = null;

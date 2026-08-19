@@ -1,10 +1,13 @@
-import { prisma } from '../config/database';
+import { AuditService as CoreAuditService } from '../modules/audit/audit.service';
 import logger from '../utils/logger';
 
 export class AuditService {
   private static instance: AuditService;
+  private coreService: CoreAuditService;
 
-  private constructor() {}
+  private constructor() {
+    this.coreService = CoreAuditService.getInstance();
+  }
 
   public static getInstance(): AuditService {
     if (!AuditService.instance) {
@@ -25,14 +28,12 @@ export class AuditService {
         ? params.details
         : { raw: params.details };
 
-      await prisma.auditLog.create({
-        data: {
-          organizationId: params.organizationId,
-          userId: params.userId,
-          action: params.action,
-          metadata,
-          ipAddress: params.ipAddress || '127.0.0.1',
-        },
+      await this.coreService.logEvent({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        action: params.action,
+        metadata,
+        ipAddress: params.ipAddress || '127.0.0.1',
       });
 
       logger.info(`AuditLog [${params.action}] recorded for user ${params.userId}`);

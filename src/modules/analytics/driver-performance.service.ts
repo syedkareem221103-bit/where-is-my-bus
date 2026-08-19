@@ -2,7 +2,8 @@ import { PrismaClient, TripStatus, UserRole } from '@prisma/client';
 import { DriverKPIs, GetDriverPerformanceQuery } from './analytics.types';
 import logger from '../../utils/logger';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class DriverPerformanceService {
   /**

@@ -11,8 +11,10 @@ import prisma from './config/database';
 import env from './config/env';
 import client from 'prom-client';
 
-// Enable default metrics (CPU, memory, event loop lag, etc.)
-client.collectDefaultMetrics({ prefix: 'wimb_' });
+// Enable default metrics (CPU, memory, event loop lag, etc.) except during tests to prevent open handle leaks
+if (process.env.NODE_ENV !== 'test') {
+  client.collectDefaultMetrics({ prefix: 'wimb_' });
+}
 
 
 // Import Modular Routers
@@ -60,7 +62,7 @@ const httpLogStream = {
   write: (message: string) => logger.http(message.trim()),
 };
 // Skip logging for health endpoints to avoid log pollution
-app.use(morgan(':remote-addr - :method :url :status :res[content-length] - :response-time ms', { 
+app.use(morgan(':remote-addr - :method :url :status :res[content-length] - :response-time ms', {
   stream: httpLogStream,
   skip: (req) => req.url === '/health' || req.url === '/ready'
 }));
@@ -80,8 +82,8 @@ app.use('/api/', rateLimiter);
 
 // 4. API Health & Readiness Endpoints
 app.get('/health', (_req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
+  res.status(200).json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -101,13 +103,13 @@ app.get('/ready', async (_req, res, next) => {
   try {
     // Lightweight database connectivity check
     await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ 
+    res.status(200).json({
       status: 'ready',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error(`Readiness check failed: ${(error as Error).message}`);
-    res.status(503).json({ 
+    res.status(503).json({
       status: 'unavailable',
       timestamp: new Date().toISOString(),
       error: 'Database connection failed'
@@ -139,5 +141,39 @@ app.use((_req, res) => {
 
 // 7. Mount Centralized Exception Interceptor
 app.use(errorHandler);
+
+import { HealthAlertService } from './modules/health/health.alert.service';
+import { HealthScheduler } from './modules/health/health.scheduler.service';
+import { HealthAggregationService } from './modules/health/health.aggregation.service';
+import GeofenceService from './modules/geofence/geofence.service';
+import AlertProcessingService from './modules/alert/alert.processing.service';
+import AlertRetentionService from './modules/alert/alert.retention.service';
+import { FleetAggregator } from './modules/fleet/fleet.aggregator';
+import { queueProvider } from './modules/notification/notification.module';
+
+export const teardownApp = async (options: { skipPrisma?: boolean } = {}) => {
+  try {
+    HealthAlertService.shutdown();
+    HealthScheduler.shutdown();
+    HealthAggregationService.shutdown();
+    GeofenceService.shutdown();
+    AlertProcessingService.shutdown();
+    AlertRetentionService.shutdown();
+    FleetAggregator.getInstance().shutdown();
+    if (queueProvider && typeof queueProvider.shutdown === 'function') {
+      await queueProvider.shutdown();
+    }
+
+    // Check the global singleton first so we don't accidentally trigger the Proxy get() trap in database.ts
+    const globalForPrisma = globalThis as unknown as { prisma: any };
+    const activePrisma = globalForPrisma.prisma;
+
+    if (activePrisma && typeof activePrisma.$disconnect === 'function' && !options.skipPrisma) {
+      await activePrisma.$disconnect();
+    }
+  } catch (err) {
+    logger.error('Error during centralized app teardown', err);
+  }
+};
 
 export default app;

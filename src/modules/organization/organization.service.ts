@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { organizationRepository } from './organization.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -12,14 +13,12 @@ export class OrganizationService {
 
     const [org] = await prisma.$transaction([
       prisma.organization.create({ data }),
-      prisma.auditLog.create({
-        data: {
-          action: 'ORGANIZATION_CREATED',
-          userId: adminId,
-          organizationId: data.organizationId,
-          metadata: { name: data.name, type: data.type },
-          ipAddress,
-        },
+      AuditService.getInstance().logEvent({
+        organizationId: data.organizationId,
+        userId: adminId,
+        action: 'ORGANIZATION_CREATED',
+        metadata: { name: data.name, type: data.type },
+        ipAddress: undefined
       })
     ]);
 
@@ -55,14 +54,12 @@ export class OrganizationService {
         where: { id },
         data,
       }),
-      prisma.auditLog.create({
-        data: {
-          action: 'ORGANIZATION_UPDATED',
-          userId,
-          organizationId: org.organizationId,
-          metadata: JSON.parse(JSON.stringify(data)),
-          ipAddress,
-        },
+      AuditService.getInstance().logEvent({
+        organizationId: org.organizationId,
+        userId: userId,
+        action: 'ORGANIZATION_UPDATED',
+        metadata: JSON.parse(JSON.stringify(data)),
+        ipAddress: undefined
       })
     ]);
 
@@ -77,14 +74,12 @@ export class OrganizationService {
         where: { id },
         data: { status: 'DEACTIVATED' }
       }),
-      prisma.auditLog.create({
-        data: {
-          action: 'ORGANIZATION_DEACTIVATED',
-          userId,
-          organizationId: org.organizationId,
-          metadata: { previousStatus: org.status },
-          ipAddress,
-        },
+      AuditService.getInstance().logEvent({
+        organizationId: org.organizationId,
+        userId: userId,
+        action: 'ORGANIZATION_DEACTIVATED',
+        metadata: { previousStatus: org.status },
+        ipAddress: undefined
       })
     ]);
 

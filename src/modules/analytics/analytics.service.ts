@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
 import { AnalyticsFilter, LiveKPIs, HistoricalKPIs } from './analytics.types';
 import logger from '../../utils/logger';
 import { FleetService } from '../fleet/fleet.service';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class AnalyticsService {
   private static instance: AnalyticsService;

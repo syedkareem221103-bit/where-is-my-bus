@@ -10,7 +10,7 @@ import { LiveTrackingService } from '../../services/live-tracking.service';
 export class TripLifecycleOrchestrator {
   private tripRepository = new TripRepository();
   private validationEngine: TripValidationEngine = new TripValidationEngine();
-  private auditService = new AuditService();
+  private auditService = AuditService.getInstance();
 
   async startTrip(
     organizationId: string,

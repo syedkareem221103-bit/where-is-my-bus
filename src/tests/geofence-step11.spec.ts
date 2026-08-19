@@ -4,7 +4,8 @@ import { PrismaClient, GeofenceType } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { initializeKeys } from '../utils/crypto';
 
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
+
 const ORG_ID = 'g1111111-1111-1111-1111-111111111111';
 const OTHER_ORG_ID = 'g2222222-2222-2222-2222-222222222222';
 const SUPER_ADMIN_ID = '0658fe4a-9ced-457e-bf06-3a1d653b898d';

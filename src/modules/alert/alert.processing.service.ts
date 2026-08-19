@@ -1,10 +1,12 @@
+import { AuditService } from '../audit/audit.service';
 import { PrismaClient, AlertCategory, AlertPriority, AlertStatus, SmartAlert, TripPing } from '@prisma/client';
 import Redis from 'ioredis';
 import logger from '../../utils/logger';
 import { EventDispatcher } from '../../realtime/services/event-dispatcher.service';
 import { notificationService } from '../notification/notification.module';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export interface AlertPayload {
   organizationId: string;
@@ -129,15 +131,13 @@ export class AlertProcessingService {
         data: { status: 'ACKNOWLEDGED' }
       });
 
-      await tx.auditLog.create({
-        data: {
-          organizationId: orgId,
-          userId,
-          action: 'ALERT_ACKNOWLEDGED',
-          metadata: { alertId: updated.id },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: 'ALERT_ACKNOWLEDGED',
+        metadata: { alertId: updated.id },
+        ipAddress: '127.0.0.1'
+      }, tx);
 
       return updated;
     });
@@ -159,15 +159,13 @@ export class AlertProcessingService {
         }
       });
 
-      await tx.auditLog.create({
-        data: {
-          organizationId: orgId,
-          userId,
-          action: 'ALERT_RESOLVED',
-          metadata: { alertId: updated.id, resolutionNotes: notes },
-          ipAddress: '127.0.0.1'
-        }
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: orgId,
+        userId: userId,
+        action: 'ALERT_RESOLVED',
+        metadata: { alertId: updated.id, resolutionNotes: notes },
+        ipAddress: '127.0.0.1'
+      }, tx);
 
       return updated;
     });
@@ -243,7 +241,7 @@ export class AlertProcessingService {
 
   public shutdown(): void {
     if (this.redis) {
-      this.redis.quit();
+      this.redis.disconnect();
     }
   }
 }

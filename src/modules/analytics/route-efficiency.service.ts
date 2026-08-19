@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import { RouteKPIs } from './analytics.types';
 import winston from 'winston';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class RouteEfficiencyService {
   /**

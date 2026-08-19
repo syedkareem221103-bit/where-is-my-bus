@@ -3,12 +3,12 @@ import { reportService } from './report.service';
 import { reportGenerator } from './report.generator';
 import { CreateReportSubscriptionSchema, OnDemandExportSchema } from './report.types';
 import { LocalStorageService } from '../../services/storage.service';
-import { PrismaClient } from '@prisma/client';
 import AuditService from '../../services/audit.service';
 import path from 'path';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 const storage = LocalStorageService.getInstance();
 
 export class ReportController {

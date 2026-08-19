@@ -7,7 +7,8 @@ import AlertProcessingService from '../modules/alert/alert.processing.service';
 import AlertRetentionService from '../modules/alert/alert.retention.service';
 import { shutdown as notificationShutdown } from '../modules/notification/notification.module';
 
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
+
 const ORG_ID = 'a1111111-1111-1111-1111-111111111111';
 const SUPER_ADMIN_ID = 'sa-alert-1234';
 const ORG_ADMIN_ID = 'oa-alert-1234';

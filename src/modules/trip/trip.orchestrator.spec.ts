@@ -30,20 +30,27 @@ describe('TripLifecycleOrchestrator', () => {
     orchestrator = new TripLifecycleOrchestrator();
     mockTripRepository = orchestrator['tripRepository'] as jest.Mocked<TripRepository>;
     mockValidationEngine = orchestrator['validationEngine'] as jest.Mocked<TripValidationEngine>;
-    mockAuditService = orchestrator['auditService'] as jest.Mocked<AuditService>;
+
+    mockAuditService = {
+      logEvent: jest.fn(),
+      sanitizePayload: jest.fn(),
+    } as unknown as jest.Mocked<AuditService>;
+    (AuditService.getInstance as jest.Mock).mockReturnValue(mockAuditService);
+
+    orchestrator['auditService'] = mockAuditService;
 
     jest.spyOn(TripStateMachine, 'validateTransition').mockImplementation(() => {});
 
     (prisma.organization.findUnique as jest.Mock).mockResolvedValue({ id: '1', organizationId: orgId, timezone: 'Asia/Kolkata' });
-    
+
     mockTripRepository.findAssignedTripByScheduleAndDate.mockResolvedValue({ id: 'trip-1', status: 'SCHEDULED', driverId: 'drv-1', vehicleId: 'veh-1' } as any);
     mockTripRepository.findByIdAndOrg.mockResolvedValue({ id: 'trip-1', status: 'STARTED', driverId: 'drv-1', vehicleId: 'veh-1' } as any);
-    
+
     (prisma.trip.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (prisma.trip.findUnique as jest.Mock).mockImplementation(({ where }) => {
       return { id: where.id, status: 'STARTED' };
     });
-    
+
     mockValidationEngine.validateStart.mockImplementation(() => {});
   });
 
@@ -54,7 +61,7 @@ describe('TripLifecycleOrchestrator', () => {
   describe('startTrip', () => {
     it('should transition to STARTED and log audit', async () => {
       const data = { scheduleId: 'sch-1', vehicleId: 'veh-1', driverId: 'drv-1' };
-      
+
       const trip = await orchestrator.startTrip(orgId, data, actorId, '127.0.0.1');
 
       expect(mockValidationEngine.validateStart).toHaveBeenCalled();
@@ -63,7 +70,7 @@ describe('TripLifecycleOrchestrator', () => {
         where: { id: 'trip-1', organizationId: orgId, status: 'SCHEDULED' },
         data: { status: 'STARTED' },
       });
-      
+
       expect(mockAuditService.logEvent).toHaveBeenCalledWith(expect.objectContaining({
         userId: actorId,
         action: 'TRIP_STATUS_UPDATED',

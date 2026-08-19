@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import { studentRepository } from './student.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
 import prisma from '../../config/database';
@@ -30,26 +31,22 @@ export class StudentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'STUDENT_CREATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { studentId: student.id, studentNumber: student.studentNumber, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_CREATED',
+        metadata: { studentId: student.id, studentNumber: student.studentNumber, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
 
       if (data.stopId) {
-        await tx.auditLog.create({
-          data: {
-            action: 'STUDENT_ASSIGNED_ROUTE',
-            userId: actorId,
-            organizationId: actor!.organizationId,
-            metadata: { studentId: student.id, stopId: data.stopId, targetOrganizationId: organizationId },
-            ipAddress: ipAddress,
-          },
-        });
+        await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_ASSIGNED_ROUTE',
+        metadata: { studentId: student.id, stopId: data.stopId, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
       }
 
       return student;
@@ -122,38 +119,32 @@ export class StudentService {
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
       if (data.status && data.status !== student.status) {
-        await tx.auditLog.create({
-          data: {
-            action: 'STUDENT_STATUS_CHANGED',
-            userId: actorId,
-            organizationId: actor!.organizationId,
-            metadata: { studentId: id, oldStatus: student.status, newStatus: data.status, targetOrganizationId: organizationId },
-            ipAddress: ipAddress,
-          },
-        });
+        await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_STATUS_CHANGED',
+        metadata: { studentId: id, oldStatus: student.status, newStatus: data.status, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
       }
 
       if (data.stopId) {
-        await tx.auditLog.create({
-          data: {
-            action: 'STUDENT_ASSIGNED_ROUTE',
-            userId: actorId,
-            organizationId: actor!.organizationId,
-            metadata: { studentId: id, stopId: data.stopId, targetOrganizationId: organizationId },
-            ipAddress: ipAddress,
-          },
-        });
+        await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_ASSIGNED_ROUTE',
+        metadata: { studentId: id, stopId: data.stopId, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
       }
 
-      await tx.auditLog.create({
-        data: {
-          action: 'STUDENT_UPDATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { studentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_UPDATED',
+        metadata: { studentId: id, targetOrganizationId: organizationId, updates: Object.keys(data) },
+        ipAddress: ipAddress
+      }, tx);
     });
 
     return this.getStudent(id, organizationId);
@@ -167,15 +158,13 @@ export class StudentService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'STUDENT_DELETED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { studentId: id, targetOrganizationId: organizationId },
-          ipAddress: ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'STUDENT_DELETED',
+        metadata: { studentId: id, targetOrganizationId: organizationId },
+        ipAddress: ipAddress
+      }, tx);
 
       return deletedStudent;
     });

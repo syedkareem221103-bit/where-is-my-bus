@@ -1,3 +1,4 @@
+import { AuditService } from '../audit/audit.service';
 import bcryptjs from 'bcryptjs';
 import { driverRepository } from './driver.repository';
 import { NotFoundError, ConflictError, ForbiddenError } from '../../errors';
@@ -38,15 +39,13 @@ export class DriverService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'DRIVER_CREATED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { driverId: driver.id, email: driver.email, targetOrganizationId: organizationId },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'DRIVER_CREATED',
+        metadata: { driverId: driver.id, email: driver.email, targetOrganizationId: organizationId },
+        ipAddress: undefined
+      }, tx);
 
       return driver;
     });
@@ -122,15 +121,13 @@ export class DriverService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action,
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { driverId: driver.id, targetOrganizationId: organizationId, updates: Object.keys(userData) },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: action,
+        metadata: { driverId: driver.id, targetOrganizationId: organizationId, updates: Object.keys(userData) },
+        ipAddress: undefined
+      }, tx);
 
       return updated;
     });
@@ -158,15 +155,13 @@ export class DriverService {
 
       const actor = await tx.user.findUnique({ where: { id: actorId } });
 
-      await tx.auditLog.create({
-        data: {
-          action: 'DRIVER_DELETED',
-          userId: actorId,
-          organizationId: actor!.organizationId,
-          metadata: { driverId: driver.id, targetOrganizationId: organizationId },
-          ipAddress,
-        },
-      });
+      await AuditService.getInstance().logEvent({
+        organizationId: organizationId,
+        userId: actorId,
+        action: 'DRIVER_DELETED',
+        metadata: { driverId: driver.id, targetOrganizationId: organizationId },
+        ipAddress: undefined
+      }, tx);
 
       return deleted;
     });

@@ -39,7 +39,7 @@ export const notificationDispatcher = new NotificationDispatcher(
 );
 
 // 5. Start Workers
-notificationDispatcher.startWorkers();
+if (process.env.NODE_ENV !== "test") { notificationDispatcher.startWorkers(); }
 
 // 6. Subscribe to Domain Events
 const subscribeToEvents = () => {

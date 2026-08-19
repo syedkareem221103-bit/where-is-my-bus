@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
 import * as cron from 'node-cron';
 import logger from '../../utils/logger';
 import Redis from 'ioredis';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class AlertRetentionService {
   private static instance: AlertRetentionService;
@@ -31,6 +31,12 @@ export class AlertRetentionService {
   }
 
   private scheduleCleanup() {
+    // Prevent node-cron from leaking timeouts in Jest test suites
+    if (process.env.NODE_ENV === 'test') {
+      logger.info('AlertRetentionService: Cleanup cron disabled in test environment.');
+      return;
+    }
+
     // Run nightly at 2:00 AM
     this.cronTask = cron.schedule('0 2 * * *', async () => {
       // Optimistic lock to prevent cluster duplicate runs
@@ -90,7 +96,7 @@ export class AlertRetentionService {
       this.cronTask.stop();
     }
     if (this.redis) {
-      this.redis.quit();
+      this.redis.disconnect();
     }
   }
 }

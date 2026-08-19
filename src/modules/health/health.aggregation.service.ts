@@ -1,11 +1,11 @@
-import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 import { SystemHealthPayload, HealthStatus, ServiceHealth } from './health.types';
 import { SystemMetricsCollector } from './system.metrics.collector';
 import { HealthCheckRegistry } from './health.check.registry';
 import { EventDispatcher } from '../../realtime/services/event-dispatcher.service';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 let redis: Redis;
 
 if (process.env.NODE_ENV === 'test') {
@@ -130,5 +130,9 @@ export class HealthAggregationService {
     } catch (e: any) {
       return { status: 'OFFLINE', message: e.message, updatedAt: new Date().toISOString() };
     }
+  }
+
+  public static shutdown(): void {
+    if (redis) redis.disconnect();
   }
 }

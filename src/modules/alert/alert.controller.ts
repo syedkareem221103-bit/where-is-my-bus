@@ -3,7 +3,8 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { AlertFilterSchema, UpdateAlertStatusSchema } from './alert.types';
 import AlertProcessingService from './alert.processing.service';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../config/database';
+
 
 export class AlertController {
   
