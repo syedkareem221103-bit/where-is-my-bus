@@ -59,7 +59,7 @@ EXPOSE 4000
 # Health Check (requires curl, but node alpine doesn't have it by default. 
 # We'll use wget which is built into alpine/busybox)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:4000/api/v1/system/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:4000/ready || exit 1
 
 # Start the application
 CMD ["node", "dist/server.js"]
